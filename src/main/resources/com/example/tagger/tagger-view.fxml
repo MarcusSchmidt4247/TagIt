@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import org.controlsfx.control.CheckTreeView?>
+<?import javafx.scene.image.ImageView?>
+<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
+    <SplitPane dividerPositions="0.3" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
+        <!-- Left pane contains a scrollable tree view -->
+        <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+            <CheckTreeView fx:id="tagTreeView" showRoot="false" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
+                <CheckBoxTreeItem value="root" independent="true"/>
+            </CheckTreeView>
+        </AnchorPane>
+        <!-- Right pane shows content, if available -->
+        <AnchorPane fx:id="contentPane" minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+            <StackPane AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
+                <Label fx:id="errorLabel"/>
+                <ImageView fx:id="imageView" preserveRatio="true"/>
+            </StackPane>
+        </AnchorPane>
+    </SplitPane>
+</VBox>
