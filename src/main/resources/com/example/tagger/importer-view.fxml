@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.scene.image.ImageView?>
+<?import javafx.geometry.Insets?>
+<?import org.controlsfx.control.CheckTreeView?>
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.example.tagger.ImporterController" stylesheets="@stylesheets.css"
+      alignment="CENTER" spacing="10.0" maxWidth="Infinity" maxHeight="Infinity">
+    <padding>
+        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+    </padding>
+    <HBox spacing="20.0" maxWidth="Infinity">
+        <Button text="Choose Import Folder" onAction="#onChooseDirectory"/>
+        <Label fx:id="directoryLabel" maxHeight="Infinity" style="-fx-font-size: 15"/>
+    </HBox>
+    <HBox spacing="20.0" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
+        <!-- The left side of the window previews the content -->
+        <Pane fx:id="contentPane" styleClass="outlined" HBox.hgrow="ALWAYS" prefHeight="450" prefWidth="350">
+            <ImageView fx:id="imageView" preserveRatio="true"/>
+        </Pane>
+        <!-- The right side of the window contains the import controls -->
+        <AnchorPane HBox.hgrow="ALWAYS" prefWidth="350">
+            <Label AnchorPane.topAnchor="5.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">Tag Selector:</Label>
+            <Button text="Deselect All" onAction="#onDeselectAll" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"/>
+            <VBox spacing="10.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="35.0" AnchorPane.topAnchor="35.0">
+                <CheckTreeView fx:id="tagTreeView" VBox.vgrow="ALWAYS">
+                    <CheckBoxTreeItem value="root" independent="true" expanded="true"/>
+                </CheckTreeView>
+                <Label fx:id="tagLabel" wrapText="true" minHeight="60.0">This file will be tagged with:</Label>
+            </VBox>
+            <HBox spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0">
+                <Button fx:id="prevButton" text="Go Back" onAction="#onPrevButton" disable="true"/>
+                <Button fx:id="nextButton" text="Skip" onAction="#onNextButton" disable="true"/>
+            </HBox>
+            <Button fx:id="importButton" text="Import File" onAction="#onImportButton" disable="true" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="0.0"/>
+        </AnchorPane>
+    </HBox>
+</VBox>

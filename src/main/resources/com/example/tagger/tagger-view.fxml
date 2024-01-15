@@ -5,7 +5,12 @@
 
 <?import org.controlsfx.control.CheckTreeView?>
 <?import javafx.scene.image.ImageView?>
-<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
+<VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
+    <MenuBar useSystemMenuBar="true">
+        <Menu text="Files">
+            <MenuItem text="Import" onAction="#onSelectImport"/>
+        </Menu>
+    </MenuBar>
     <SplitPane dividerPositions="0.3" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- Left pane contains a scrollable tree view -->
         <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">

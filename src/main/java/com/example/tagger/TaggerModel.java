@@ -7,6 +7,9 @@ public class TaggerModel
     private final String PATH;
     public String getPath() { return PATH; }
 
+    private final TagNode TAG_TREE;
+    public TagNode getTagTree() { return TAG_TREE; }
+
     private final Vector<String> FILES = new Vector<>();
     private int currFileIndex = -1;
     public String firstFile()
@@ -63,5 +66,6 @@ public class TaggerModel
     public TaggerModel(final String PATH)
     {
         this.PATH = PATH;
+        TAG_TREE = ReadWriteManager.readTags(PATH);
     }
 }

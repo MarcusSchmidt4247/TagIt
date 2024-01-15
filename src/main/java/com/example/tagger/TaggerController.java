@@ -2,6 +2,8 @@ package com.example.tagger;
 
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.CheckBoxTreeItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.TreeItem;
@@ -10,6 +12,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import org.controlsfx.control.CheckTreeView;
 
 import java.io.*;
@@ -26,57 +30,26 @@ public class TaggerController
     @FXML
     private ImageView imageView;
 
-    private final TaggerModel TAGGER_MODEL = new TaggerModel("placeholder");
+    private TaggerModel taggerModel;
 
     public void initialize()
     {
         // Set the image view to scale with the window
         imageView.fitWidthProperty().bind(contentPane.widthProperty());
         imageView.fitHeightProperty().bind(contentPane.heightProperty());
+    }
 
-        // Read the tags into the program and populate the check tree view with them
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/tags.txt", TAGGER_MODEL.getPath()))))
+    public void setModel(TaggerModel taggerModel)
+    {
+        if (this.taggerModel == null)
         {
-            String line = bufferedReader.readLine();
-            CheckBoxTreeItem<String> parent = (CheckBoxTreeItem<String>) tagTreeView.getRoot();
-            int treeDepth = 0;
-            while (line != null)
-            {
-                // Regex of expected line format: -*>.+
-                int newDepth = line.indexOf('>');
-                String tag = line.substring(newDepth + 1);
-                CheckBoxTreeItem<String> node = new CheckBoxTreeItem<>(tag);
-                node.setIndependent(true);
+            this.taggerModel = taggerModel;
 
-                if (newDepth > treeDepth)
-                {
-                    parent = (CheckBoxTreeItem<String>) parent.getChildren().getLast();
-                    treeDepth++;
-                }
-                else
-                {
-                    while (newDepth < treeDepth)
-                    {
-                        parent = (CheckBoxTreeItem<String>) parent.getParent();
-                        treeDepth--;
-                    }
-                }
+            populateTagTree((CheckBoxTreeItem<String>) tagTreeView.getRoot(), taggerModel.getTagTree().getChildren());
 
-                parent.getChildren().add(node);
-                line = bufferedReader.readLine();
-            }
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-
-        // Docs: https://controlsfx.github.io/javadoc/11.1.0/org.controlsfx.controls/org/controlsfx/control/CheckTreeView.html
-        //       https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
-        tagTreeView.getCheckModel().getCheckedItems().addListener(new ListChangeListener<TreeItem<String>>()
-        {
-            @Override
-            public void onChanged(Change<? extends TreeItem<String>> change)
+            // Docs: https://controlsfx.github.io/javadoc/11.1.0/org.controlsfx.controls/org/controlsfx/control/CheckTreeView.html
+            //       https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
+            tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
                 // Get all active tags
                 Vector<String> activeTags = new Vector<>();
@@ -84,7 +57,7 @@ public class TaggerController
                     activeTags.add(treeItem.getValue());
 
                 // Gather the names of the files with those tags
-                try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/files.txt", TAGGER_MODEL.getPath()))))
+                try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/files.txt", taggerModel.getPath()))))
                 {
                     Vector<String> selectedFiles = new Vector<>();
                     String line = bufferedReader.readLine();
@@ -103,32 +76,68 @@ public class TaggerController
                         }
                         line = bufferedReader.readLine();
                     }
-                    TAGGER_MODEL.setFiles(selectedFiles);
+                    taggerModel.setFiles(selectedFiles);
                 }
                 catch (IOException e)
                 {
                     throw new RuntimeException(e);
                 }
 
-                refreshContentPane(TAGGER_MODEL.firstFile());
-            }
-        });
+                refreshContentPane(taggerModel.firstFile());
+            });
+        }
+        else
+            throw new IllegalStateException("Model can only be set once");
     }
 
     public void keyEventHandler(KeyEvent event)
     {
         event.consume();
         if (event.getCode() == KeyCode.LEFT)
-            refreshContentPane(TAGGER_MODEL.prevFile());
+            refreshContentPane(taggerModel.prevFile());
         else if (event.getCode() == KeyCode.RIGHT)
-            refreshContentPane(TAGGER_MODEL.nextFile());
+            refreshContentPane(taggerModel.nextFile());
+    }
+
+    @FXML
+    public void onSelectImport() throws IOException
+    {
+        FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("importer-view.fxml"));
+        Scene scene = new Scene(fxmlLoader.load());
+        ((ImporterController) fxmlLoader.getController()).setModel(taggerModel);
+
+        Stage stage = new Stage();
+        stage.initOwner(contentPane.getScene().getWindow());
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.setMinWidth(450);
+        stage.setMinHeight(400);
+        stage.setTitle("File Importer");
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    //******************
+    // Private methods *
+    //******************
+
+    // A recursive, depth-first approach to populating the CheckTreeView from the custom tree data structure
+    private void populateTagTree(CheckBoxTreeItem<String> parent, Vector<TagNode> children)
+    {
+        for (TagNode node : children)
+        {
+            CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(node.getTag());
+            nodeItem.setIndependent(true);
+            parent.getChildren().add(nodeItem);
+            if (!node.getChildren().isEmpty())
+                populateTagTree((CheckBoxTreeItem<String>) parent.getChildren().getLast(), node.getChildren());
+        }
     }
 
     private void refreshContentPane(String fileName)
     {
         if (fileName != null)
         {
-            String filePath = String.format("%s/Storage/%s", TAGGER_MODEL.getPath(), fileName);
+            String filePath = String.format("%s/Storage/%s", taggerModel.getPath(), fileName);
             try (FileInputStream input = new FileInputStream(filePath))
             {
                 Image image = new Image(input);
