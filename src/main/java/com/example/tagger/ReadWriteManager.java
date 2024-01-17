@@ -1,12 +1,13 @@
 package com.example.tagger;
 
 import java.io.*;
+import java.util.Vector;
 
 public class ReadWriteManager
 {
     public static TagNode readTags(final String PATH)
     {
-        TagNode root = new TagNode(null, "root");
+        TagNode root = new TagNode();
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/tags.txt", PATH))))
         {
             String line = bufferedReader.readLine();
@@ -63,14 +64,7 @@ public class ReadWriteManager
         {
             try
             {
-                return directory.listFiles(new FilenameFilter()
-                {
-                    @Override
-                    public boolean accept(File dir, String name)
-                    {
-                        return name.matches(".+[.](jpeg|jpg|png)$");
-                    }
-                });
+                return directory.listFiles((dir, name) -> name.matches(".+[.](jpe?g|png)$"));
             }
             catch (SecurityException exception)
             {
@@ -82,6 +76,50 @@ public class ReadWriteManager
         {
             System.out.printf("ReadWriteManager.getFilesInDir: Path \"%s\" does not lead to a valid directory", PATH);
             return null;
+        }
+    }
+
+    // Return a list of all filenames in the program's storage directory that meet the set of tag criteria
+    public static Vector<String> getTaggedFiles(final String PATH, TagNode tagTree)
+    {
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/files.txt", PATH))))
+        {
+            Vector<String> selectedFiles = new Vector<>();
+            String line = bufferedReader.readLine();
+            while (line != null)
+            {
+                // Regex of expected line format: .+:(.+,)*.+
+                int delimiterIndex = line.indexOf(':');
+                String[] fileTagChains = line.substring(delimiterIndex + 1).split(",");
+                for (String tagChain : fileTagChains)
+                {
+                    TagNode node = tagTree.findNode(tagChain);
+                    if (node != null && node.isActive())
+                    {
+                        selectedFiles.add(line.substring(0, delimiterIndex));
+                        break;
+                    }
+                }
+                line = bufferedReader.readLine();
+            }
+            return selectedFiles;
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void writeNewFileTags(String fileName, Vector<TagNode> tags, String destination) throws IOException
+    {
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(destination, true)))
+        {
+            StringBuilder stringBuilder = new StringBuilder(fileName).append(":");
+            for (TagNode tag : tags)
+                stringBuilder.append(tag.getTagChain()).append(",");
+            stringBuilder.deleteCharAt(stringBuilder.length()-1);
+            stringBuilder.append("\n");
+            bufferedWriter.write(stringBuilder.toString());
         }
     }
 }

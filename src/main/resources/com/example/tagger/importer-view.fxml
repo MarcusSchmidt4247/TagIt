@@ -23,12 +23,12 @@
         <!-- The right side of the window contains the import controls -->
         <AnchorPane HBox.hgrow="ALWAYS" prefWidth="350">
             <Label AnchorPane.topAnchor="5.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">Tag Selector:</Label>
-            <Button text="Deselect All" onAction="#onDeselectAll" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"/>
+            <Button fx:id="deselectButton" text="Deselect All" onAction="#onDeselectAll" disable="true" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"/>
             <VBox spacing="10.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="35.0" AnchorPane.topAnchor="35.0">
-                <CheckTreeView fx:id="tagTreeView" VBox.vgrow="ALWAYS">
+                <CheckTreeView fx:id="tagTreeView" showRoot="false" VBox.vgrow="ALWAYS">
                     <CheckBoxTreeItem value="root" independent="true" expanded="true"/>
                 </CheckTreeView>
-                <Label fx:id="tagLabel" wrapText="true" minHeight="60.0">This file will be tagged with:</Label>
+                <Label fx:id="tagLabel" wrapText="true" minHeight="60.0">This file's tags:</Label>
             </VBox>
             <HBox spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0">
                 <Button fx:id="prevButton" text="Go Back" onAction="#onPrevButton" disable="true"/>

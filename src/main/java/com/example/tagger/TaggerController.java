@@ -51,38 +51,26 @@ public class TaggerController
             //       https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
-                // Get all active tags
-                Vector<String> activeTags = new Vector<>();
-                for (TreeItem<String> treeItem : tagTreeView.getCheckModel().getCheckedItems())
-                    activeTags.add(treeItem.getValue());
-
-                // Gather the names of the files with those tags
-                try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/files.txt", taggerModel.getPath()))))
+                while (change.next())
                 {
-                    Vector<String> selectedFiles = new Vector<>();
-                    String line = bufferedReader.readLine();
-                    while (line != null)
+                    if (change.wasAdded())
                     {
-                        // Regex of expected line format: .+:(.+,)*.+
-                        int delimiterIndex = line.indexOf(':');
-                        String[] fileTags = line.substring(delimiterIndex + 1).split(",");
-                        for (String tag : fileTags)
+                        for (TreeItem<String> item : change.getAddedSubList())
                         {
-                            if (activeTags.contains(tag))
-                            {
-                                selectedFiles.add(line.substring(0, delimiterIndex));
-                                break;
-                            }
+                            taggerModel.getTagTree().findNode(item).activateNode();
                         }
-                        line = bufferedReader.readLine();
                     }
-                    taggerModel.setFiles(selectedFiles);
-                }
-                catch (IOException e)
-                {
-                    throw new RuntimeException(e);
+                    if (change.wasRemoved())
+                    {
+                        for (TreeItem<String> item : change.getRemoved())
+                        {
+                            taggerModel.getTagTree().findNode(item).deactivateNode();
+                        }
+                    }
                 }
 
+                // Refresh currently selected files and the content pane displaying them
+                taggerModel.setFiles(ReadWriteManager.getTaggedFiles(taggerModel.getPath(), taggerModel.getTagTree()));
                 refreshContentPane(taggerModel.firstFile());
             });
         }
