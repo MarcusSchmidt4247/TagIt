@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.value.ObservableDoubleValue;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -27,6 +29,8 @@ public class ImporterController
     @FXML
     private Label directoryLabel;
     @FXML
+    private Label fileNameLabel;
+    @FXML
     private Label tagLabel;
 
     @FXML
@@ -41,13 +45,40 @@ public class ImporterController
     private TaggerModel taggerModel;
     private ImporterModel importerModel;
 
+    private static class OffsetDoubleBinding extends DoubleBinding
+    {
+        private final ObservableDoubleValue PROPERTY;
+        private final double OFFSET;
+        private double prevResult;
+
+        public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
+        {
+            PROPERTY = property;
+            bind(PROPERTY);
+            this.OFFSET = OFFSET;
+        }
+
+        @Override
+        protected double computeValue()
+        {
+            /* If the bound value is closer to this value than a quarter of the offset, then it must be decreasing
+             * quickly and should be given more room to shrink per frame */
+            double nextOffset = OFFSET;
+            if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
+                nextOffset *= 3;
+            return (prevResult = PROPERTY.doubleValue() - nextOffset);
+        }
+    }
+
     public void initialize()
     {
         importerModel = new ImporterModel();
 
-        // Set the image view to scale with the window
-        imageView.fitWidthProperty().bind(contentPane.widthProperty());
-        imageView.fitHeightProperty().bind(contentPane.heightProperty());
+        /* Set the image view to scale with the window. Binding directly to the content pane's width and height leads to
+         * a slow, infinite growth because the content pane keeps trying to be slightly bigger because it has a border,
+         * so use a custom offset binding. */
+        imageView.fitHeightProperty().bind(new OffsetDoubleBinding(contentPane.heightProperty(), 10.0));
+        imageView.fitWidthProperty().bind(new OffsetDoubleBinding(contentPane.widthProperty(), 10.0));
 
         importerModel.getFiles().addListener((ListChangeListener<File>) change ->
         {
@@ -99,8 +130,6 @@ public class ImporterController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
-
-            // Create the tag tree view from the list of tags in the model, and then set a listener for when tags are checked
 
             /* Set up the TreeView used for selecting which tags to assign to the imported file.
              * First, assign it a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes so that only
@@ -277,6 +306,7 @@ public class ImporterController
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
             importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
+            fileNameLabel.setText(String.format("Current File: %s", importerModel.getFiles().get(importerModel.importIndex).getName()));
             try (FileInputStream input = new FileInputStream(importerModel.getFiles().get(importerModel.importIndex)))
             {
                 Image image = new Image(input);
@@ -295,6 +325,7 @@ public class ImporterController
         else
         {
             //errorLabel.setText("No files selected");
+            fileNameLabel.setText("Current File:");
             imageView.setVisible(false);
         }
     }

@@ -9,5 +9,5 @@
 
 .dev-outline {
     -fx-border-color: #FF0000;
-    -fx-border-width: 1;
+    -fx-border-width: 0.5;
 }
