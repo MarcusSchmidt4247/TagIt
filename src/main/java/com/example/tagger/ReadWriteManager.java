@@ -1,58 +1,196 @@
 package com.example.tagger;
 
-import java.io.*;
+import java.io.File;
+import java.sql.*;
 import java.util.Vector;
 
 public class ReadWriteManager
 {
-    public static TagNode readTags(final String PATH)
+    // Save a newly created TagNode to the database
+    public static void addTag(TagNode tag)
     {
-        TagNode root = new TagNode();
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/tags.txt", PATH))))
+        String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
         {
-            String line = bufferedReader.readLine();
-            TagNode parent = root;
-            int treeDepth = 0;
-            while (line != null)
-            {
-                // Regex of expected line format: -*>.+
-                int newDepth = line.indexOf('>');
-                String tag = line.substring(newDepth + 1);
+            String sql = String.format("INSERT INTO Tag(name) VALUES(\"%s\")", tag.getTag());
+            Statement statement = connection.createStatement();
+            statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
-                if (newDepth > treeDepth)
+            // Get this tag's ID assigned by the database and pass it along to the TagNode object
+            ResultSet keys = statement.getGeneratedKeys();
+            int id = (keys.next()) ? keys.getInt(1) : -1;
+            tag.setId(id);
+
+            if (tag.getParent() != null)
+            {
+                // If this tag has a parent, insert a row into the TagParentage table to track this relationship
+                sql = String.format("INSERT INTO TagParentage VALUES(%d, %d)", tag.getParent().getId(), id);
+                statement.execute(sql);
+            }
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Return the list of tags that do not have parent tags
+    public static Vector<TagNode> getRootTags(TagNode root)
+    {
+        Vector<TagNode> tags = new Vector<>();
+        String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
+        {
+            String sql = "SELECT name, id FROM Tag WHERE id NOT IN (SELECT child_id FROM TagParentage) ORDER BY name ASC";
+            Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(sql);
+            while (results.next())
+                tags.add(new TagNode(root, results.getString(1), results.getInt(2)));
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return tags;
+    }
+
+    // Return the list of tags that are children of the provided tag
+    public static Vector<TagNode> getChildTags(TagNode parent)
+    {
+        Vector<TagNode> children = new Vector<>();
+        String url = String.format("jdbc:sqlite:%s/%s", parent.getRootPath(), "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
+        {
+            String sql = "SELECT name, id FROM Tag JOIN TagParentage ON id=child_id WHERE parent_id=? ORDER BY name ASC";
+            PreparedStatement statement = connection.prepareStatement(sql);
+            statement.setInt(1, parent.getId());
+            if (statement.execute())
+            {
+                ResultSet results = statement.getResultSet();
+                while (results.next())
+                    children.add(new TagNode(parent, results.getString(1), results.getInt(2)));
+            }
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return children;
+    }
+
+    // Return whether the provided tag has any children tags
+    public static boolean isLeafTag(TagNode tag)
+    {
+        String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
+        {
+            String sql = String.format("SELECT count(parent_id) FROM TagParentage WHERE parent_id=%d", tag.getId());
+            Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(sql);
+            boolean leaf = (results.next() && results.getInt(1) == 0);
+            statement.close();
+            return leaf;
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Return the list of names of every file in the managed directory that has at least one of its tags active
+    public static Vector<String> getTaggedFiles(TagNode root)
+    {
+        Vector<String> files = new Vector<>();
+        Vector<Integer> activeTagIds = root.getActiveNodeIds();
+        if (!activeTagIds.isEmpty())
+        {
+            // Create a comma-separated list of the IDs for every active tag that will be used in the SQL query
+            StringBuilder idList = new StringBuilder();
+            for (Integer id : activeTagIds)
+                idList.append(id).append(",");
+            idList.deleteCharAt(idList.length() - 1); // gets rid of the trailing comma
+
+            String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                // Select every file's name that is associated with a tag ID that is present in the comma-separated list of searched-for tags
+                String sql = String.format("SELECT DISTINCT name FROM File JOIN FileTags ON id=file_id WHERE tag_id IN (%s)", idList);
+                Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery(sql);
+                while (results.next())
+                    files.add(results.getString(1));
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        return files;
+    }
+
+    // Save a newly imported file to the database
+    public static void saveFile(final String PATH, String fileName, Vector<TagNode> tags)
+    {
+        if (!tags.isEmpty())
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", PATH, "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                // Insert the filename into the File table
+                String sql = String.format("INSERT INTO File(name) VALUES(\"%s\")", fileName);
+                Statement statement = connection.createStatement();
+                statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
+
+                // Get the ID assigned to this file by the database and insert a row with it and each of its tag's IDs into the FileTags table
+                ResultSet keys = statement.getGeneratedKeys();
+                if (keys.next())
                 {
-                    parent = parent.getChildren().getLast();
-                    treeDepth++;
-                }
-                else
-                {
-                    while (newDepth < treeDepth)
+                    int fileId = keys.getInt(1);
+                    for (TagNode tag : tags)
                     {
-                        parent = parent.getParent();
-                        treeDepth--;
+                        sql = String.format("INSERT INTO FileTags VALUES(%d, %d)", fileId, tag.getId());
+                        statement.execute(sql);
                     }
                 }
+                else
+                    System.out.println("ReadWriteManager.saveFile: Unable to retrieve file ID, tags not inserted");
 
-                parent.getChildren().add(new TagNode(parent, tag));
-                line = bufferedReader.readLine();
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
             }
         }
-        catch (IOException e)
+    }
+
+    private static void createDatabaseTables(Connection database) throws SQLException
+    {
+        if (database != null && database.isValid(5))
         {
-            // If the expected tag file is missing, try creating a new one before throwing an exception if that also doesn't work
-            System.out.println("Tag file missing, creating new empty file");
-            File tagFile = new File(String.format("%s/tags.txt", PATH));
-            try
-            {
-                //noinspection ResultOfMethodCallIgnored
-                tagFile.createNewFile();
-            }
-            catch (IOException ex)
-            {
-                throw new RuntimeException(ex);
-            }
+            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+            String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
+                                    "tag_id INTEGER NOT NULL," +
+                                    "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
+                                    "FOREIGN KEY (tag_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                    "PRIMARY KEY (file_id, tag_id))";
+            String tagParentageSchema = "CREATE TABLE TagParentage(parent_id INTEGER NOT NULL," +
+                                        "child_id INTEGER NOT NULL," +
+                                        "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                        "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                        "PRIMARY KEY (parent_id, child_id))";
+            Statement statement = database.createStatement();
+            statement.execute(fileSchema);
+            statement.execute(tagSchema);
+            statement.execute(fileTagsSchema);
+            statement.execute(tagParentageSchema);
+            statement.close();
         }
-        return root;
     }
 
     /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),
@@ -64,7 +202,7 @@ public class ReadWriteManager
         {
             try
             {
-                return directory.listFiles((dir, name) -> name.matches(".+[.](jpe?g|png)$"));
+                return directory.listFiles(new ExtensionFilter());
             }
             catch (SecurityException exception)
             {
@@ -76,50 +214,6 @@ public class ReadWriteManager
         {
             System.out.printf("ReadWriteManager.getFilesInDir: Path \"%s\" does not lead to a valid directory", PATH);
             return null;
-        }
-    }
-
-    // Return a list of all filenames in the program's storage directory that meet the set of tag criteria
-    public static Vector<String> getTaggedFiles(final String PATH, TagNode tagTree)
-    {
-        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(String.format("%s/files.txt", PATH))))
-        {
-            Vector<String> selectedFiles = new Vector<>();
-            String line = bufferedReader.readLine();
-            while (line != null)
-            {
-                // Regex of expected line format: .+:(.+,)*.+
-                int delimiterIndex = line.indexOf(':');
-                String[] fileTagChains = line.substring(delimiterIndex + 1).split(",");
-                for (String tagChain : fileTagChains)
-                {
-                    TagNode node = tagTree.findNode(tagChain);
-                    if (node != null && node.isActive())
-                    {
-                        selectedFiles.add(line.substring(0, delimiterIndex));
-                        break;
-                    }
-                }
-                line = bufferedReader.readLine();
-            }
-            return selectedFiles;
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void writeNewFileTags(String fileName, Vector<TagNode> tags, String destination) throws IOException
-    {
-        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(destination, true)))
-        {
-            StringBuilder stringBuilder = new StringBuilder(fileName).append(":");
-            for (TagNode tag : tags)
-                stringBuilder.append(tag.getTagChain()).append(",");
-            stringBuilder.deleteCharAt(stringBuilder.length()-1);
-            stringBuilder.append("\n");
-            bufferedWriter.write(stringBuilder.toString());
         }
     }
 }

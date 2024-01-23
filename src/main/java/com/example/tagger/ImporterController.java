@@ -1,7 +1,9 @@
 package com.example.tagger;
 
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableDoubleValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -32,6 +34,8 @@ public class ImporterController
     private Label fileNameLabel;
     @FXML
     private Label tagLabel;
+    @FXML
+    private Label errorLabel;
 
     @FXML
     private Button deselectButton;
@@ -119,8 +123,11 @@ public class ImporterController
             if (!importerModel.getPath().getValue().isEmpty())
             {
                 File[] files = ReadWriteManager.getFilesInDir(importerModel.getPath().getValue());
-                if (files != null)
+                // Adding new files will refresh the content pane, but it also needs to be refreshed even if there aren't any
+                if (files != null && files.length > 0)
                     importerModel.getFiles().addAll(Arrays.asList(files));
+                else
+                    refreshContentPane();
             }
         });
     }
@@ -132,8 +139,8 @@ public class ImporterController
             this.taggerModel = taggerModel;
 
             /* Set up the TreeView used for selecting which tags to assign to the imported file.
-             * First, assign it a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes so that only
-             * leaf nodes can be given a checkbox for tagging purposes.
+             * First, it needs a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes so that only
+             * leaf nodes have a checkbox for tagging purposes.
              * Source for cell factory code: https://blog.idrsolutions.com/mixed-treeview-nodes-javafx/ */
             tagTreeView.setCellFactory(factory -> new CheckBoxTreeCell<>()
             {
@@ -153,19 +160,19 @@ public class ImporterController
                     }
                 }
             });
-            // Second, recursively traverse the tag data structure to populate the TreeView
-            populateTagTree(tagTreeView.getRoot(), taggerModel.getTagTree().getChildren());
-            // Finally, add a listener to the list of checked items
+            // Add the top-level tags to the tree view
+            populateTagTree(tagTreeView.getRoot(), taggerModel.getTreeRoot().getChildren());
+            // Finally, add a listener to the (currently empty) list of checked items
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
-                // Update the applied tags list with the changes to the TreeView
+                // When a tree element is (un)checked, add or remove the associated TagNode from the list of tags that will be applied
                 while (change.next())
                 {
                     if (change.wasAdded())
                     {
                         for (TreeItem<String> item : change.getAddedSubList())
                         {
-                            TagNode addedNode = taggerModel.getTagTree().findNode(item);
+                            TagNode addedNode = taggerModel.getTreeRoot().findNode(item);
                             importerModel.getAppliedTags().add(addedNode);
                         }
                     }
@@ -173,27 +180,27 @@ public class ImporterController
                     {
                         for (TreeItem<String> item : change.getRemoved())
                         {
-                            TagNode removedNode = taggerModel.getTagTree().findNode(item);
+                            TagNode removedNode = taggerModel.getTreeRoot().findNode(item);
                             importerModel.getAppliedTags().remove(removedNode);
                         }
                     }
                 }
 
-                // The deselect button should be enabled if there is at least one CheckBoxTreeItem checked
+                // Update the deselect button state (should be enabled if there is at least one CheckBoxTreeItem checked)
                 if (deselectButton.isDisabled() != tagTreeView.getCheckModel().getCheckedItems().isEmpty())
                     deselectButton.setDisable(!deselectButton.isDisabled());
 
-                // The import button should be enabled if there is at least one file to import and one tag applied to it
+                // Update the import button state (should be enabled if there is at least one file to import and one tag applied to it)
                 if (importButton.isDisabled() != (importerModel.getAppliedTags().isEmpty() || importerModel.getFiles().isEmpty()))
                     importButton.setDisable(!importButton.isDisabled());
 
-                // Update the label that displays every tag the current file will receive
+                // Update the label that lists the tags the current file will receive when it is imported
                 StringBuilder stringBuilder = new StringBuilder("This file's tags: ");
                 if (!importerModel.getAppliedTags().isEmpty())
                 {
                     for (TagNode tag : importerModel.getAppliedTags())
                     {
-                        stringBuilder.append(tag.getTagChain()).append(",  ");
+                        stringBuilder.append(tag.getTagPath()).append(",  ");
                     }
                     stringBuilder.delete(stringBuilder.length() - 3, stringBuilder.length()); // removes the trailing ",  "
                 }
@@ -208,7 +215,6 @@ public class ImporterController
     public void onChooseDirectory()
     {
         DirectoryChooser directoryChooser = new DirectoryChooser();
-        //directoryChooser.setInitialDirectory(new File());
         File result = directoryChooser.showDialog(tagTreeView.getScene().getWindow());
         if (result != null)
             importerModel.getPath().set(result.getAbsolutePath());
@@ -259,7 +265,7 @@ public class ImporterController
             try
             {
                 Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
-                ReadWriteManager.writeNewFileTags(importFile.getName(), importerModel.getAppliedTags(), String.format("%s/files.txt", taggerModel.getPath()));
+                ReadWriteManager.saveFile(taggerModel.getPath(), importFile.getName(), importerModel.getAppliedTags());
                 importerModel.getFiles().remove(importerModel.importIndex);
             }
             catch (FileAlreadyExistsException e)
@@ -281,22 +287,42 @@ public class ImporterController
     // Private methods *
     //******************
 
-    // A recursive, depth-first approach to populating the CheckTreeView from the custom tree data structure
-    private void populateTagTree(TreeItem<String> parent, Vector<TagNode> children)
+    // Add every TagNode in 'children' as a child TreeItem to 'parentItem'
+    private void populateTagTree(TreeItem<String> parentItem, Vector<TagNode> children)
     {
-        for (TagNode node : children)
+        // This function is only expected to be called the first time 'parentItem' is expanded, so get rid of its placeholder child
+        if (!parentItem.getChildren().isEmpty() && parentItem.getChildren().getFirst().getValue().equals("invis_cb_tree_item"))
+            parentItem.getChildren().removeFirst();
+
+        for (TagNode child : children)
         {
-            if (node.getChildren().isEmpty())
+            if (!child.isLeaf())
             {
-                CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(node.getTag());
-                parent.getChildren().add(nodeItem);
+                /* If this new child is not a leaf node, it needs a listener on its expanded property that will call this method for it,
+                 * as well as being given a placeholder tree item that will give the user the option to expand it */
+                TreeItem<String> childItem = new TreeItem<>(child.getTag());
+                childItem.expandedProperty().addListener(new ChangeListener<>()
+                {
+                    @Override
+                    public void changed(ObservableValue<? extends Boolean> observableValue, Boolean aBoolean, Boolean t1)
+                    {
+                        if (observableValue.getValue())
+                        {
+                            populateTagTree(childItem, child.getChildren());
+                            // Stop listening for any further changes now that the children have been added to the tree
+                            childItem.expandedProperty().removeListener(this);
+                        }
+                    }
+                });
+                CheckBoxTreeItem<String> invisibleItem = new CheckBoxTreeItem<>("invis_cb_tree_item");
+                childItem.getChildren().add(invisibleItem);
+                parentItem.getChildren().add(childItem);
             }
             else
             {
-                TreeItem<String> nodeItem = new TreeItem<>(node.getTag());
-                //nodeItem.setExpanded(true);
-                parent.getChildren().add(nodeItem);
-                populateTagTree(parent.getChildren().getLast(), node.getChildren());
+                // If this new child is a leaf node, it can simply be added to the CheckTreeView
+                CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(child.getTag());
+                parentItem.getChildren().add(nodeItem);
             }
         }
     }
@@ -306,6 +332,9 @@ public class ImporterController
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
             importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
+            if (errorLabel.isVisible())
+                errorLabel.setVisible(false);
+
             fileNameLabel.setText(String.format("Current File: %s", importerModel.getFiles().get(importerModel.importIndex).getName()));
             try (FileInputStream input = new FileInputStream(importerModel.getFiles().get(importerModel.importIndex)))
             {
@@ -317,14 +346,16 @@ public class ImporterController
             }
             catch (IOException e)
             {
-                //errorLabel.setText(String.format("Unable to load file \"%s\"", fileName));
+                errorLabel.setText(String.format("Unable to load file \"%s\"", importerModel.getFiles().get(importerModel.importIndex).getName()));
+                errorLabel.setVisible(true);
                 imageView.setVisible(false);
                 throw new RuntimeException(e);
             }
         }
         else
         {
-            //errorLabel.setText("No files selected");
+            errorLabel.setText("No files to import");
+            errorLabel.setVisible(true);
             fileNameLabel.setText("Current File:");
             imageView.setVisible(false);
         }

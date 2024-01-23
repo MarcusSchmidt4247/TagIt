@@ -23,6 +23,7 @@
             </padding>
             <Label fx:id="fileNameLabel">Current File:</Label>
             <StackPane fx:id="contentPane" styleClass="outlined" VBox.vgrow="ALWAYS">
+                <Label fx:id="errorLabel"/>
                 <ImageView fx:id="imageView" preserveRatio="true"/>
             </StackPane>
             <CheckBox fx:id="copyCheckBox" text="Import copy of file"/>

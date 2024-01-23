@@ -4,6 +4,7 @@ module com.example.tagger {
 
     requires org.controlsfx.controls;
     requires org.kordamp.ikonli.javafx;
+    requires java.sql;
 
     opens com.example.tagger to javafx.fxml;
     exports com.example.tagger;
