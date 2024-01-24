@@ -1,11 +1,60 @@
 package com.example.tagger;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.*;
 import java.util.Vector;
 
 public class ReadWriteManager
 {
+    // Ensure the database file exists
+    public static void verifyDatabase(final String PATH)
+    {
+        // Create a file object representing what should be a valid database in the device's file system
+        File database = new File(String.format("%s/database.db", PATH));
+        if (!database.isFile())
+        {
+            // If this file object does not represent a valid file, try to create it
+            try
+            {
+                if (database.createNewFile())
+                {
+                    // If successful, try to connect to it as a SQLite database
+                    String url = String.format("jdbc:sqlite:%s", database.getAbsolutePath());
+                    try (Connection connection = DriverManager.getConnection(url))
+                    {
+                        if (connection.isValid(5))
+                        {
+                            // If successful, create the database tables
+                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+                            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+                            String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
+                                    "tag_id INTEGER NOT NULL," +
+                                    "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
+                                    "FOREIGN KEY (tag_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                    "PRIMARY KEY (file_id, tag_id))";
+                            String tagParentageSchema = "CREATE TABLE TagParentage(parent_id INTEGER NOT NULL," +
+                                    "child_id INTEGER NOT NULL," +
+                                    "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                    "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                                    "PRIMARY KEY (parent_id, child_id))";
+                            Statement statement = connection.createStatement();
+                            statement.execute(fileSchema);
+                            statement.execute(tagSchema);
+                            statement.execute(fileTagsSchema);
+                            statement.execute(tagParentageSchema);
+                            statement.close();
+                        }
+                    }
+                }
+            }
+            catch (IOException | SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     // Save a newly created TagNode to the database
     public static void addTag(TagNode tag)
     {
@@ -165,31 +214,6 @@ public class ReadWriteManager
             {
                 throw new RuntimeException(e);
             }
-        }
-    }
-
-    private static void createDatabaseTables(Connection database) throws SQLException
-    {
-        if (database != null && database.isValid(5))
-        {
-            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
-            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
-            String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
-                                    "tag_id INTEGER NOT NULL," +
-                                    "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
-                                    "FOREIGN KEY (tag_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                    "PRIMARY KEY (file_id, tag_id))";
-            String tagParentageSchema = "CREATE TABLE TagParentage(parent_id INTEGER NOT NULL," +
-                                        "child_id INTEGER NOT NULL," +
-                                        "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                        "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                        "PRIMARY KEY (parent_id, child_id))";
-            Statement statement = database.createStatement();
-            statement.execute(fileSchema);
-            statement.execute(tagSchema);
-            statement.execute(fileTagsSchema);
-            statement.execute(tagParentageSchema);
-            statement.close();
         }
     }
 

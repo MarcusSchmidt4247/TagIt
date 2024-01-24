@@ -24,6 +24,8 @@ public class TaggerApplication extends Application
                 path = new Scanner(input).nextLine();
         }
 
+        ReadWriteManager.verifyDatabase(path);
+
         // Simple MVC design pattern example: https://stackoverflow.com/questions/32342864
         TaggerModel taggerModel = new TaggerModel(path);
 

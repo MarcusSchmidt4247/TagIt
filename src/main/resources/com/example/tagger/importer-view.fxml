@@ -17,7 +17,7 @@
     </HBox>
     <HBox spacing="20.0" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- The left side of the window previews the content -->
-        <VBox spacing="10.0" HBox.hgrow="ALWAYS" prefHeight="450" prefWidth="350">
+        <VBox spacing="10.0" HBox.hgrow="ALWAYS" prefWidth="450">
             <padding>
                 <Insets top="5.0"/>
             </padding>
@@ -29,7 +29,7 @@
             <CheckBox fx:id="copyCheckBox" text="Import copy of file"/>
         </VBox>
         <!-- The right side of the window contains the import controls -->
-        <AnchorPane HBox.hgrow="ALWAYS" prefWidth="350">
+        <AnchorPane HBox.hgrow="ALWAYS" prefWidth="450" maxWidth="450">
             <Label AnchorPane.topAnchor="5.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">Tag Selector:</Label>
             <Button fx:id="deselectButton" text="Deselect All" onAction="#onDeselectAll" disable="true" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"/>
             <VBox spacing="10.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="35.0" AnchorPane.topAnchor="35.0">
