@@ -5,6 +5,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTreeCell;
@@ -17,7 +20,6 @@ import org.controlsfx.control.CheckTreeView;
 import java.io.*;
 import java.nio.file.*;
 import java.util.Arrays;
-import java.util.Vector;
 
 public class ImporterController
 {
@@ -48,31 +50,6 @@ public class ImporterController
 
     private TaggerModel taggerModel;
     private ImporterModel importerModel;
-
-    private static class OffsetDoubleBinding extends DoubleBinding
-    {
-        private final ObservableDoubleValue PROPERTY;
-        private final double OFFSET;
-        private double prevResult;
-
-        public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
-        {
-            PROPERTY = property;
-            bind(PROPERTY);
-            this.OFFSET = OFFSET;
-        }
-
-        @Override
-        protected double computeValue()
-        {
-            /* If the bound value is closer to this value than a quarter of the offset, then it must be decreasing
-             * quickly and should be given more room to shrink per frame */
-            double nextOffset = OFFSET;
-            if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
-                nextOffset *= 3;
-            return (prevResult = PROPERTY.doubleValue() - nextOffset);
-        }
-    }
 
     public void initialize()
     {
@@ -206,6 +183,11 @@ public class ImporterController
                 }
                 tagLabel.setText(stringBuilder.toString());
             });
+            ContextMenu contextMenu = new ContextMenu();
+            MenuItem createItem = new MenuItem("Create child tag");
+            createItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView));
+            contextMenu.getItems().add(createItem);
+            tagTreeView.setContextMenu(contextMenu);
         }
         else
             throw new IllegalStateException("Model can only be set once");
@@ -288,7 +270,7 @@ public class ImporterController
     //******************
 
     // Add every TagNode in 'children' as a child TreeItem to 'parentItem'
-    private void populateTagTree(TreeItem<String> parentItem, Vector<TagNode> children)
+    private void populateTagTree(TreeItem<String> parentItem, ObservableList<TagNode> children)
     {
         // This function is only expected to be called the first time 'parentItem' is expanded, so get rid of its placeholder child
         if (!parentItem.getChildren().isEmpty() && parentItem.getChildren().getFirst().getValue().equals("invis_cb_tree_item"))
@@ -358,6 +340,106 @@ public class ImporterController
             errorLabel.setVisible(true);
             fileNameLabel.setText("Current File:");
             imageView.setVisible(false);
+        }
+    }
+
+    //******************
+    // Private classes *
+    //******************
+
+    private static class OffsetDoubleBinding extends DoubleBinding
+    {
+        private final ObservableDoubleValue PROPERTY;
+        private final double OFFSET;
+        private double prevResult;
+
+        public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
+        {
+            PROPERTY = property;
+            bind(PROPERTY);
+            this.OFFSET = OFFSET;
+        }
+
+        @Override
+        protected double computeValue()
+        {
+            /* If the bound value is closer to this value than a quarter of the offset, then it must be decreasing
+             * quickly and should be given more room to shrink per frame */
+            double nextOffset = OFFSET;
+            if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
+                nextOffset *= 3;
+            return (prevResult = PROPERTY.doubleValue() - nextOffset);
+        }
+    }
+
+    private static class TreeViewMenuHandler implements EventHandler<ActionEvent>
+    {
+        private final TagNode TREE_ROOT;
+        private final CheckTreeView<String> TREE_VIEW;
+
+        public TreeViewMenuHandler(TagNode treeRoot, CheckTreeView<String> treeView)
+        {
+            TREE_ROOT = treeRoot;
+            TREE_VIEW = treeView;
+        }
+
+        @Override
+        public void handle(ActionEvent actionEvent)
+        {
+            // Find the TagNode that is equivalent to the selected TreeItem
+            TagNode parent = TREE_ROOT;
+            TreeItem<String> selectedItem = TREE_VIEW.getSelectionModel().getSelectedItem();
+            if (selectedItem != null)
+                parent = TREE_ROOT.findNode(selectedItem);
+
+            // Ask the user to enter a valid name for the new tag
+            boolean valid;
+            String name = null;
+            do
+            {
+                String instruction = (name == null) ? "Enter the name of the new tag:" : "Cannot contain slashes or quotes,\nand must be unique on this layer\n\nEnter the name of the new tag:";
+                name = inputDialog(instruction); // will return null if user cancels
+                if (name != null)
+                    valid = validInput(name) && !parent.hasChild(name);
+                else
+                    valid = false;
+            } while (name != null && !valid);
+
+            if (valid)
+            {
+                // Create a TagNode child for the new tag and add it to the database
+                TagNode child = new TagNode(parent, name);
+                parent.getChildren().add(child);
+                ReadWriteManager.addTag(child);
+
+                // Add a new CheckBoxTreeItem to the CheckTreeView for the new tag
+                CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(child.getTag());
+                if (selectedItem != null)
+                    selectedItem.getChildren().add(nodeItem);
+                else
+                    TREE_VIEW.getRoot().getChildren().add(nodeItem);
+            }
+        }
+
+        private String inputDialog(String instruction)
+        {
+            // Open a dialog that asks the user to input a name for this new tag
+            TextInputDialog nameDialog = new TextInputDialog();
+            nameDialog.setTitle("Create Tag");
+            nameDialog.setHeaderText(instruction);
+            nameDialog.setGraphic(null);
+            nameDialog.showAndWait();
+            return nameDialog.getResult();
+        }
+
+        private boolean validInput(String input)
+        {
+            for (char c : input.toCharArray())
+            {
+                if (c == '/' || c == '\\' || c == '"' || c == '\'')
+                    return false;
+            }
+            return true;
         }
     }
 }

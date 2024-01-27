@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 import java.util.Vector;
 
@@ -11,29 +13,37 @@ public class TagNode
     private final String NODE;
     public String getTag() { return NODE; }
 
-    private Vector<TagNode> children = null;
-    public Vector<TagNode> getChildren()
+    private boolean fetchedChildren = false;
+    private final ObservableList<TagNode> children = FXCollections.observableArrayList();
+    public ObservableList<TagNode> getChildren() { return getChildren(false); }
+    public ObservableList<TagNode> getChildren(boolean noFetch)
     {
-        if (children == null)
+        if (!fetchedChildren && !noFetch)
         {
+            fetchedChildren = true;
             if (PARENT == null)
-                children = ReadWriteManager.getRootTags(this);
+                ReadWriteManager.getRootTags(this, children);
             else
-                children = ReadWriteManager.getChildTags(this);
+                ReadWriteManager.getChildTags(this, children);
         }
         return children;
     }
+    public boolean hasChild(String name)
+    {
+        for (TagNode child : getChildren())
+        {
+            if (child.getTag().equals(name))
+                return true;
+        }
+        return false;
+    }
 
-    private boolean isLeaf;
-    private boolean checkedIsLeaf = false;
     public boolean isLeaf()
     {
-        if (!checkedIsLeaf)
-        {
-            checkedIsLeaf = true;
-            isLeaf = ReadWriteManager.isLeafTag(this);
-        }
-        return isLeaf;
+        if (!fetchedChildren)
+            return ReadWriteManager.isLeafTag(this);
+        else
+            return children.isEmpty();
     }
 
     private final String ROOT_PATH;
@@ -59,13 +69,9 @@ public class TagNode
         PARENT = null;
         NODE = "root";
         tagPath = null;
-        isLeaf = false;
     }
 
-    public TagNode(final TagNode PARENT, final String TAG)
-    {
-        this(PARENT, TAG, -1);
-    }
+    public TagNode(final TagNode PARENT, final String TAG) { this(PARENT, TAG, -1); }
 
     // General constructor (should not be used for the root node unless you want it to be displayed in 'tagPath')
     public TagNode(final TagNode PARENT, final String TAG, int id)
@@ -100,8 +106,11 @@ public class TagNode
         Vector<Integer> activeNodeIds = new Vector<>();
         if (isActive())
             activeNodeIds.add(id);
-        for (TagNode child : getChildren())
-            activeNodeIds.addAll(child.getActiveNodeIds());
+        if (fetchedChildren)
+        {
+            for (TagNode child : children)
+                activeNodeIds.addAll(child.getActiveNodeIds());
+        }
         return activeNodeIds;
     }
 

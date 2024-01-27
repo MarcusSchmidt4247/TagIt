@@ -19,7 +19,6 @@ import javafx.stage.Stage;
 import org.controlsfx.control.CheckTreeView;
 
 import java.io.*;
-import java.util.Vector;
 
 public class TaggerController
 {
@@ -33,6 +32,7 @@ public class TaggerController
     private ImageView imageView;
 
     private TaggerModel taggerModel;
+    private static final String TEMP_TREE_ITEM_CHILD = "temp_cb_tree_item_child";
 
     public void initialize()
     {
@@ -46,7 +46,7 @@ public class TaggerController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
-            populateTagTree((CheckBoxTreeItem<String>) tagTreeView.getRoot(), taggerModel.getTreeRoot().getChildren());
+            populateTagTree((CheckBoxTreeItem<String>) tagTreeView.getRoot(), taggerModel.getTreeRoot());
 
             // Docs: https://controlsfx.github.io/javadoc/11.1.0/org.controlsfx.controls/org/controlsfx/control/CheckTreeView.html
             //       https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
@@ -109,39 +109,78 @@ public class TaggerController
     // Private methods *
     //******************
 
-    // Add every TagNode in 'children' as a child CheckBoxTreeItem to 'parentItem'
-    private void populateTagTree(CheckBoxTreeItem<String> parentItem, Vector<TagNode> children)
+    /* Populate a newly expanded CheckBoxTreeItem with children matching those in the provided TagNode
+     * (both arguments should reference equivalent nodes in their respective trees) */
+    private void populateTagTree(CheckBoxTreeItem<String> treeItem, TagNode node)
     {
-        // This function is only expected to be called the first time 'parentItem' is expanded, so get rid of its placeholder child
-        if (!parentItem.getChildren().isEmpty() && parentItem.getChildren().getFirst().getValue().equals("invis_cb_tree_item"))
-            parentItem.getChildren().removeFirst();
+        // This function is expected to only be called the first time treeItem is expanded, so get rid of its placeholder child
+        if (!treeItem.getChildren().isEmpty() && treeItem.getChildren().getFirst().getValue().equals(TEMP_TREE_ITEM_CHILD))
+            treeItem.getChildren().removeFirst();
 
-        for (TagNode child : children)
+        // Then add CheckBoxTreeItems for its actual children
+        for (TagNode child : node.getChildren())
+            treeItem.getChildren().add(newTreeItem(child));
+
+        // Create a listener on the TagNode's list of children so that the tree item will be updated if it changes
+        node.getChildren().addListener((ListChangeListener<TagNode>) change ->
         {
-            CheckBoxTreeItem<String> childItem = new CheckBoxTreeItem<>(child.getTag());
-            childItem.setIndependent(true);
-            /* If this new child is not a leaf node, it needs a listener on its expanded property that will call this method for it,
-             * as well as being given a placeholder tree item that will give the user the option to expand it */
-            if (!child.isLeaf())
+            while (change.next())
             {
-                childItem.expandedProperty().addListener(new ChangeListener<>()
-                {
-                    @Override
-                    public void changed(ObservableValue<? extends Boolean> observableValue, Boolean aBoolean, Boolean t1)
-                    {
-                        if (observableValue.getValue())
-                        {
-                            populateTagTree(childItem, child.getChildren());
-                            // Stop listening for any further changes now that the children have been added to the tree
-                            childItem.expandedProperty().removeListener(this);
-                        }
-                    }
-                });
-                CheckBoxTreeItem<String> invisibleItem = new CheckBoxTreeItem<>("invis_cb_tree_item");
-                childItem.getChildren().add(invisibleItem);
+                for (TagNode addedNode : change.getAddedSubList())
+                    treeItem.getChildren().add(newTreeItem(addedNode));
             }
-            parentItem.getChildren().add(childItem);
+        });
+    }
+
+    private CheckBoxTreeItem<String> newTreeItem(TagNode node)
+    {
+        CheckBoxTreeItem<String> treeItem = new CheckBoxTreeItem<>(node.getTag());
+        treeItem.setIndependent(true);
+
+        if (!node.isLeaf())
+            configUnexpandedTreeItem(treeItem, node);
+        else
+        {
+            /* If this tag is currently a leaf and doesn't need to be expandable, add a listener to its list of children
+             * so that it will be configured to be expandable if children are added to it */
+            node.getChildren(true).addListener(new ListChangeListener<>()
+            {
+                @Override
+                public void onChanged(Change<? extends TagNode> change)
+                {
+                    if (!node.getChildren().isEmpty())
+                    {
+                        if (treeItem.getChildren().isEmpty())
+                            configUnexpandedTreeItem(treeItem, node);
+
+                        node.getChildren(true).removeListener(this);
+                    }
+                }
+            });
         }
+
+        return treeItem;
+    }
+
+    private void configUnexpandedTreeItem(CheckBoxTreeItem<String> treeItem, TagNode node)
+    {
+        /* If this new child is not a leaf node, it needs a listener on its expanded property that will call populateTagTree for it,
+         * as well as being given a placeholder tree item that will give the user the option to expand it */
+        treeItem.expandedProperty().addListener(new ChangeListener<>()
+        {
+            @Override
+            public void changed(ObservableValue<? extends Boolean> observableValue, Boolean aBoolean, Boolean t1)
+            {
+                if (observableValue.getValue())
+                {
+                    populateTagTree(treeItem, node);
+                    // Stop listening for any further changes now that the children have been added to the tree
+                    treeItem.expandedProperty().removeListener(this);
+                }
+            }
+        });
+        CheckBoxTreeItem<String> invisibleItem = new CheckBoxTreeItem<>(TEMP_TREE_ITEM_CHILD);
+        treeItem.getChildren().add(invisibleItem);
     }
 
     private void refreshContentPane(String fileName)

@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import javafx.collections.ObservableList;
+
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
@@ -70,7 +72,9 @@ public class ReadWriteManager
             int id = (keys.next()) ? keys.getInt(1) : -1;
             tag.setId(id);
 
-            if (tag.getParent() != null)
+            /* A root tag's TagNode is still the child of the root TagNode for the sake of maintaining a single tree with all tags,
+               so this TagNode's parent's parent must be null if it is a root tag and doesn't need a TagParentage entry */
+            if (tag.getParent() != null && tag.getParent().getParent() != null)
             {
                 // If this tag has a parent, insert a row into the TagParentage table to track this relationship
                 sql = String.format("INSERT INTO TagParentage VALUES(%d, %d)", tag.getParent().getId(), id);
@@ -85,9 +89,9 @@ public class ReadWriteManager
     }
 
     // Return the list of tags that do not have parent tags
-    public static Vector<TagNode> getRootTags(TagNode root)
+    public static void getRootTags(TagNode root, ObservableList<TagNode> tags)
     {
-        Vector<TagNode> tags = new Vector<>();
+        tags.clear();
         String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
         try (Connection connection = DriverManager.getConnection(url))
         {
@@ -102,13 +106,12 @@ public class ReadWriteManager
         {
             throw new RuntimeException(e);
         }
-        return tags;
     }
 
     // Return the list of tags that are children of the provided tag
-    public static Vector<TagNode> getChildTags(TagNode parent)
+    public static void getChildTags(TagNode parent, ObservableList<TagNode> children)
     {
-        Vector<TagNode> children = new Vector<>();
+        children.clear();
         String url = String.format("jdbc:sqlite:%s/%s", parent.getRootPath(), "database.db");
         try (Connection connection = DriverManager.getConnection(url))
         {
@@ -127,7 +130,6 @@ public class ReadWriteManager
         {
             throw new RuntimeException(e);
         }
-        return children;
     }
 
     // Return whether the provided tag has any children tags
