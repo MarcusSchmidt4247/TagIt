@@ -2,9 +2,9 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
-<?import org.controlsfx.control.CheckTreeView?>
 <?import javafx.scene.image.ImageView?>
+<?import com.example.tagger.DynamicCheckTreeView?>
+
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
     <MenuBar useSystemMenuBar="true">
         <Menu text="Files">
@@ -14,9 +14,9 @@
     <SplitPane dividerPositions="0.3" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- Left pane contains a scrollable tree view -->
         <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
-            <CheckTreeView fx:id="tagTreeView" showRoot="false" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <DynamicCheckTreeView fx:id="tagTreeView" showRoot="false" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
                 <CheckBoxTreeItem value="root" independent="true"/>
-            </CheckTreeView>
+            </DynamicCheckTreeView>
         </AnchorPane>
         <!-- Right pane shows content, if available -->
         <AnchorPane fx:id="contentPane" minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">

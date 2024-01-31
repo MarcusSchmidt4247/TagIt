@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
@@ -7,11 +9,19 @@ import java.util.Vector;
 
 public class TagNode
 {
-    private final TagNode PARENT;
-    public TagNode getParent() { return PARENT; }
+    private TagNode parent;
+    public TagNode getParent() { return parent; }
+    public void changeParent(TagNode newParent)
+    {
+        parent.getChildren().remove(this);
+        parent = newParent;
+        parent.getChildren().add(this);
+    }
 
-    private final String NODE;
-    public String getTag() { return NODE; }
+    private final StringProperty tag;
+    public StringProperty tagProperty() { return tag; }
+    public String getTag() { return tag.getValue(); }
+    public void setTag(String tag) { this.tag.setValue(tag); }
 
     private boolean fetchedChildren = false;
     private final ObservableList<TagNode> children = FXCollections.observableArrayList();
@@ -21,7 +31,7 @@ public class TagNode
         if (!fetchedChildren && !noFetch)
         {
             fetchedChildren = true;
-            if (PARENT == null)
+            if (parent == null)
                 ReadWriteManager.getRootTags(this, children);
             else
                 ReadWriteManager.getChildTags(this, children);
@@ -49,8 +59,13 @@ public class TagNode
     private final String ROOT_PATH;
     public String getRootPath() { return ROOT_PATH; }
 
-    private String tagPath;
-    public String getTagPath() { return tagPath; }
+    public String getTagPath()
+    {
+        if (parent == null)
+            return null;
+        else
+            return (parent.getTagPath() != null) ? String.format("%s->%s", parent.getTagPath(), tag.getValue()) : tag.getValue();
+    }
 
     private int id = -1;
     public int getId() { return id; }
@@ -66,22 +81,28 @@ public class TagNode
     public TagNode(final String ROOT_PATH)
     {
         this.ROOT_PATH = ROOT_PATH;
-        PARENT = null;
-        NODE = "root";
-        tagPath = null;
+        parent = null;
+        tag = new SimpleStringProperty("root");
     }
 
-    public TagNode(final TagNode PARENT, final String TAG) { this(PARENT, TAG, -1); }
+    public TagNode(final TagNode parent, final String TAG) { this(parent, TAG, -1); }
 
     // General constructor (should not be used for the root node unless you want it to be displayed in 'tagPath')
-    public TagNode(final TagNode PARENT, final String TAG, int id)
+    public TagNode(final TagNode parent, String tag, int id)
     {
-        this.PARENT = PARENT;
-        ROOT_PATH = PARENT.getRootPath();
-        NODE = TAG;
+        this.parent = parent;
+        ROOT_PATH = parent.getRootPath();
+        this.tag = new SimpleStringProperty(tag);
         this.id = id;
-        tagPath = (PARENT.getTagPath() != null) ? String.format("%s->%s", PARENT.getTagPath(), NODE) : NODE;
         activationWeight = 0;
+    }
+
+    public boolean equals(TagNode other)
+    {
+        if (id != -1 || other.getId() != -1)
+            return id == other.getId();
+        else
+            return tag.getValue().equals(other.getTag());
     }
 
     public void activateNode()
@@ -121,7 +142,7 @@ public class TagNode
         if (item == null)
             return null;
         else if (item.getParent() == null)
-            return (item.getValue().equals(NODE)) ? this : null;
+            return (item.getValue().equals(tag.getValue())) ? this : null;
         else
         {
             // Construct a path to this node by traversing backwards up the TreeView
@@ -132,37 +153,39 @@ public class TagNode
                 item = item.getParent();
             }
 
-            return findNode(path.toArray(new String[path.size()]));
-        }
-    }
-
-    public TagNode findNode(String tagChain)
-    {
-        return findNode(tagChain.split("->"));
-    }
-
-    private TagNode findNode(String[] tagChain)
-    {
-        // Attempt to follow this path forward through the TagNode tree
-        TagNode node = this;
-        for (String step : tagChain)
-        {
-            boolean foundMatch = false;
-            for (TagNode child : node.getChildren())
+            // Attempt to follow this path forward through the TagNode tree
+            TagNode node = this;
+            for (String step : path)
             {
-                if (child.getTag().equals(step))
+                boolean foundMatch = false;
+                for (TagNode child : node.getChildren())
                 {
-                    node = child;
-                    foundMatch = true;
-                    break;
+                    if (child.getTag().equals(step))
+                    {
+                        node = child;
+                        foundMatch = true;
+                        break;
+                    }
                 }
+
+                // If there was no match found for this step, the trees don't match and the node cannot be found
+                if (!foundMatch)
+                    return null;
             }
 
-            // If there was no match found for this step, the trees don't match and the node cannot be found
-            if (!foundMatch)
-                return null;
+            return node;
         }
+    }
 
-        return node;
+    public void delete()
+    {
+        ReadWriteManager.deleteTag(this);
+        if (parent != null)
+            parent.getChildren().remove(this);
+        if (!children.isEmpty())
+        {
+            for (int i = children.size() - 1; i >= 0; i--)
+                children.get(i).delete();
+        }
     }
 }

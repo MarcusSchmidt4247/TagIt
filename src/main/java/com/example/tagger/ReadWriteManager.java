@@ -28,8 +28,8 @@ public class ReadWriteManager
                         if (connection.isValid(5))
                         {
                             // If successful, create the database tables
-                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
-                            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
+                            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
                             String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
                                     "tag_id INTEGER NOT NULL," +
                                     "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
@@ -65,6 +65,7 @@ public class ReadWriteManager
         {
             String sql = String.format("INSERT INTO Tag(name) VALUES(\"%s\")", tag.getTag());
             Statement statement = connection.createStatement();
+            statement.execute("PRAGMA foreign_keys = ON");
             statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
             // Get this tag's ID assigned by the database and pass it along to the TagNode object
@@ -151,6 +152,87 @@ public class ReadWriteManager
         }
     }
 
+    public static void renameTag(TagNode tag)
+    {
+        // A tag with the ID -1 has not been written to the database yet, so it cannot be updated
+        if (tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                String sql = String.format("UPDATE Tag SET name=\"%s\" WHERE id=%d", tag.getTag(), tag.getId());
+                Statement statement = connection.createStatement();
+                statement.execute(sql);
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.renameTag: Tag ID = -1");
+    }
+
+    public static void updateTagParentage(TagNode tag)
+    {
+        // If the TagNode does not have a parent then it is the tree's root and NOT a tag in and of itself, so there's nothing to update
+        if (tag.getParent() != null && tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                Statement statement = connection.createStatement();
+                statement.execute("PRAGMA foreign_keys = ON");
+
+                // If the tag's new parentage makes it a root tag (its parent is the root of the tag tree), then remove it as a child from the TagParentage table
+                String sql;
+                if (tag.getParent().getParent() == null)
+                    sql = String.format("DELETE FROM TagParentage WHERE child_id=%d", tag.getId());
+                else
+                {
+                    // Otherwise, check whether the tag has already been inserted as a child into the TagParentage table
+                    ResultSet resultSet = statement.executeQuery(String.format("SELECT count(child_id) FROM TagParentage WHERE child_id=%d", tag.getId()));
+                    // If it has, just update the row
+                    if (resultSet.next() && resultSet.getInt(1) > 0)
+                        sql = String.format("UPDATE TagParentage SET parent_id=%d WHERE child_id=%d", tag.getParent().getId(), tag.getId());
+                    // Otherwise, insert it into the table
+                    else
+                        sql = String.format("INSERT INTO TagParentage VALUES (%d, %d)", tag.getParent().getId(), tag.getId());
+                }
+                statement.execute(sql);
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.updateTagParent: Tag's parent is null or ID = -1");
+    }
+
+    public static void deleteTag(TagNode tag)
+    {
+        if (tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                Statement statement = connection.createStatement();
+                statement.execute("PRAGMA foreign_keys = ON");
+                statement.execute(String.format("DELETE FROM Tag WHERE id=%d", tag.getId()));
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.deleteTag: Tag ID = -1");
+    }
+
     // Return the list of names of every file in the managed directory that has at least one of its tags active
     public static Vector<String> getTaggedFiles(TagNode root)
     {
@@ -194,6 +276,7 @@ public class ReadWriteManager
                 // Insert the filename into the File table
                 String sql = String.format("INSERT INTO File(name) VALUES(\"%s\")", fileName);
                 Statement statement = connection.createStatement();
+                statement.execute("PRAGMA foreign_keys = ON");
                 statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
                 // Get the ID assigned to this file by the database and insert a row with it and each of its tag's IDs into the FileTags table
@@ -241,5 +324,15 @@ public class ReadWriteManager
             System.out.printf("ReadWriteManager.getFilesInDir: Path \"%s\" does not lead to a valid directory", PATH);
             return null;
         }
+    }
+
+    public static boolean validInput(String input)
+    {
+        for (char c : input.toCharArray())
+        {
+            if (c == '/' || c == '\\' || c == '"' || c == '\'')
+                return false;
+        }
+        return true;
     }
 }

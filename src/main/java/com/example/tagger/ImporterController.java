@@ -1,21 +1,14 @@
 package com.example.tagger;
 
 import javafx.beans.binding.DoubleBinding;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableDoubleValue;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.stage.DirectoryChooser;
-import org.controlsfx.control.CheckTreeView;
 
 import java.io.*;
 import java.nio.file.*;
@@ -28,7 +21,7 @@ public class ImporterController
     @FXML
     private ImageView imageView;
     @FXML
-    private CheckTreeView<String> tagTreeView;
+    private DynamicCheckTreeView tagTreeView;
 
     @FXML
     private Label directoryLabel;
@@ -115,31 +108,8 @@ public class ImporterController
         {
             this.taggerModel = taggerModel;
 
-            /* Set up the TreeView used for selecting which tags to assign to the imported file.
-             * First, it needs a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes so that only
-             * leaf nodes have a checkbox for tagging purposes.
-             * Source for cell factory code: https://blog.idrsolutions.com/mixed-treeview-nodes-javafx/ */
-            tagTreeView.setCellFactory(factory -> new CheckBoxTreeCell<>()
-            {
-                @Override
-                public void updateItem(String item, boolean empty)
-                {
-                    super.updateItem(item, empty);
-
-                    if (empty || item == null)
-                    {
-                        setText(null);
-                        setGraphic(null);
-                    }
-                    else if (!(getTreeItem() instanceof CheckBoxTreeItem))
-                    {
-                        setGraphic(null);
-                    }
-                }
-            });
-            // Add the top-level tags to the tree view
-            populateTagTree(tagTreeView.getRoot(), taggerModel.getTreeRoot().getChildren());
-            // Finally, add a listener to the (currently empty) list of checked items
+            // Initialize and add a listener to the (currently empty) list of checked items
+            tagTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
                 // When a tree element is (un)checked, add or remove the associated TagNode from the list of tags that will be applied
@@ -150,7 +120,10 @@ public class ImporterController
                         for (TreeItem<String> item : change.getAddedSubList())
                         {
                             TagNode addedNode = taggerModel.getTreeRoot().findNode(item);
-                            importerModel.getAppliedTags().add(addedNode);
+                            if (addedNode != null)
+                                importerModel.getAppliedTags().add(addedNode);
+                            else
+                                System.out.printf("ImporterController.getCheckedItems listener: Unable to find node for added tree item \"%s\"\n", item.getValue());
                         }
                     }
                     if (change.wasRemoved())
@@ -158,7 +131,10 @@ public class ImporterController
                         for (TreeItem<String> item : change.getRemoved())
                         {
                             TagNode removedNode = taggerModel.getTreeRoot().findNode(item);
-                            importerModel.getAppliedTags().remove(removedNode);
+                            if (removedNode != null)
+                                importerModel.getAppliedTags().remove(removedNode);
+                            else
+                                System.out.printf("ImporterController.getCheckedItems listener: Unable to find node for removed tree item \"%s\"\n", item.getValue());
                         }
                     }
                 }
@@ -185,8 +161,11 @@ public class ImporterController
             });
             ContextMenu contextMenu = new ContextMenu();
             MenuItem createItem = new MenuItem("Create child tag");
-            createItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView));
+            createItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.CREATE));
             contextMenu.getItems().add(createItem);
+            MenuItem editItem = new MenuItem("Edit tag");
+            editItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.EDIT));
+            contextMenu.getItems().add(editItem);
             tagTreeView.setContextMenu(contextMenu);
         }
         else
@@ -269,46 +248,6 @@ public class ImporterController
     // Private methods *
     //******************
 
-    // Add every TagNode in 'children' as a child TreeItem to 'parentItem'
-    private void populateTagTree(TreeItem<String> parentItem, ObservableList<TagNode> children)
-    {
-        // This function is only expected to be called the first time 'parentItem' is expanded, so get rid of its placeholder child
-        if (!parentItem.getChildren().isEmpty() && parentItem.getChildren().getFirst().getValue().equals("invis_cb_tree_item"))
-            parentItem.getChildren().removeFirst();
-
-        for (TagNode child : children)
-        {
-            if (!child.isLeaf())
-            {
-                /* If this new child is not a leaf node, it needs a listener on its expanded property that will call this method for it,
-                 * as well as being given a placeholder tree item that will give the user the option to expand it */
-                TreeItem<String> childItem = new TreeItem<>(child.getTag());
-                childItem.expandedProperty().addListener(new ChangeListener<>()
-                {
-                    @Override
-                    public void changed(ObservableValue<? extends Boolean> observableValue, Boolean aBoolean, Boolean t1)
-                    {
-                        if (observableValue.getValue())
-                        {
-                            populateTagTree(childItem, child.getChildren());
-                            // Stop listening for any further changes now that the children have been added to the tree
-                            childItem.expandedProperty().removeListener(this);
-                        }
-                    }
-                });
-                CheckBoxTreeItem<String> invisibleItem = new CheckBoxTreeItem<>("invis_cb_tree_item");
-                childItem.getChildren().add(invisibleItem);
-                parentItem.getChildren().add(childItem);
-            }
-            else
-            {
-                // If this new child is a leaf node, it can simply be added to the CheckTreeView
-                CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(child.getTag());
-                parentItem.getChildren().add(nodeItem);
-            }
-        }
-    }
-
     private void refreshContentPane()
     {
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
@@ -369,77 +308,6 @@ public class ImporterController
             if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
                 nextOffset *= 3;
             return (prevResult = PROPERTY.doubleValue() - nextOffset);
-        }
-    }
-
-    private static class TreeViewMenuHandler implements EventHandler<ActionEvent>
-    {
-        private final TagNode TREE_ROOT;
-        private final CheckTreeView<String> TREE_VIEW;
-
-        public TreeViewMenuHandler(TagNode treeRoot, CheckTreeView<String> treeView)
-        {
-            TREE_ROOT = treeRoot;
-            TREE_VIEW = treeView;
-        }
-
-        @Override
-        public void handle(ActionEvent actionEvent)
-        {
-            // Find the TagNode that is equivalent to the selected TreeItem
-            TagNode parent = TREE_ROOT;
-            TreeItem<String> selectedItem = TREE_VIEW.getSelectionModel().getSelectedItem();
-            if (selectedItem != null)
-                parent = TREE_ROOT.findNode(selectedItem);
-
-            // Ask the user to enter a valid name for the new tag
-            boolean valid;
-            String name = null;
-            do
-            {
-                String instruction = (name == null) ? "Enter the name of the new tag:" : "Cannot contain slashes or quotes,\nand must be unique on this layer\n\nEnter the name of the new tag:";
-                name = inputDialog(instruction); // will return null if user cancels
-                if (name != null)
-                    valid = validInput(name) && !parent.hasChild(name);
-                else
-                    valid = false;
-            } while (name != null && !valid);
-
-            if (valid)
-            {
-                // Create a TagNode child for the new tag and add it to the database
-                TagNode child = new TagNode(parent, name);
-                parent.getChildren().add(child);
-                ReadWriteManager.addTag(child);
-
-                // Add a new CheckBoxTreeItem to the CheckTreeView for the new tag
-                CheckBoxTreeItem<String> nodeItem = new CheckBoxTreeItem<>(child.getTag());
-                if (selectedItem != null)
-                    selectedItem.getChildren().add(nodeItem);
-                else
-                    TREE_VIEW.getRoot().getChildren().add(nodeItem);
-            }
-        }
-
-        private String inputDialog(String instruction)
-        {
-            // Open a dialog that asks the user to input a name for this new tag
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setTitle("Create Tag");
-            nameDialog.setHeaderText(instruction);
-            nameDialog.setGraphic(null);
-            nameDialog.showAndWait();
-            return nameDialog.getResult();
-        }
-
-        private boolean validInput(String input)
-        {
-            for (char c : input.toCharArray())
-            {
-                if (c == '/' || c == '\\' || c == '"' || c == '\'')
-                    return false;
-            }
-            return true;
         }
     }
 }
