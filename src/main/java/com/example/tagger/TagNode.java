@@ -76,6 +76,22 @@ public class TagNode
     }
 
     private int activationWeight;
+    public void activateNode(boolean on)
+    {
+        activationWeight += on ? 1 : -1;
+        for (TagNode child : getChildren())
+            child.activateNode(on);
+    }
+    public boolean isActive() { return activationWeight > 0; }
+
+    private int exclusionWeight = 0;
+    public void excludeNode(boolean on)
+    {
+        exclusionWeight += on ? 1 : -1;
+        for (TagNode child : getChildren())
+            child.excludeNode(on);
+    }
+    public boolean isExcluded() { return exclusionWeight > 0; }
 
     // Root node constructor
     public TagNode(final String ROOT_PATH)
@@ -103,36 +119,6 @@ public class TagNode
             return id == other.getId();
         else
             return tag.getValue().equals(other.getTag());
-    }
-
-    public void activateNode()
-    {
-        activationWeight++;
-        for (TagNode child : getChildren())
-            child.activateNode();
-    }
-
-    public void deactivateNode()
-    {
-        activationWeight--;
-        for (TagNode child : getChildren())
-            child.deactivateNode();
-    }
-
-    public boolean isActive() { return activationWeight > 0; }
-
-    // Return a list of the activated nodes' IDs that are within this node's subtree
-    public Vector<Integer> getActiveNodeIds()
-    {
-        Vector<Integer> activeNodeIds = new Vector<>();
-        if (isActive())
-            activeNodeIds.add(id);
-        if (fetchedChildren)
-        {
-            for (TagNode child : children)
-                activeNodeIds.addAll(child.getActiveNodeIds());
-        }
-        return activeNodeIds;
     }
 
     /* Starting from the root TagNode of a (sub)tree that is equivalent to the one containing the provided TreeItem,

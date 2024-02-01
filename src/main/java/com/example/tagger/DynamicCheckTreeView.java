@@ -40,8 +40,7 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         {
             this.mode = mode;
 
-            /* Set up a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes so that only
-             * leaf nodes can have a checkbox if desired.
+            /* Set up a custom cell factory that supports mixing TreeItem and CheckBoxTreeItem nodes.
              * Source for cell factory code: https://blog.idrsolutions.com/mixed-treeview-nodes-javafx/ */
             setCellFactory(factory -> new CheckBoxTreeCell<>()
             {

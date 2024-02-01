@@ -30,7 +30,7 @@ public class TaggerApplication extends Application
         TaggerModel taggerModel = new TaggerModel(path);
 
         FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tagger-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 750, 500);
+        Scene scene = new Scene(fxmlLoader.load(), 850, 600);
         TaggerController taggerController = fxmlLoader.getController();
         taggerController.setModel(taggerModel);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, taggerController::keyEventHandler);

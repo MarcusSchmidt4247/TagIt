@@ -4,8 +4,7 @@ import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.TreeItem;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -21,11 +20,17 @@ public class TaggerController
     @FXML
     private DynamicCheckTreeView tagTreeView;
     @FXML
+    private DynamicCheckTreeView excludeTreeView;
+    @FXML
     private AnchorPane contentPane;
     @FXML
     private Label errorLabel;
     @FXML
     private ImageView imageView;
+    @FXML
+    private RadioButton radioAny;
+    @FXML
+    private RadioButton radioAll;
 
     private TaggerModel taggerModel;
 
@@ -34,6 +39,12 @@ public class TaggerController
         // Set the image view to scale with the window
         imageView.fitWidthProperty().bind(contentPane.widthProperty());
         imageView.fitHeightProperty().bind(contentPane.heightProperty());
+
+        // Add the radio buttons to a ToggleGroup to enforce mutual exclusivity and add a listener that will refresh files when a toggle is changed
+        ToggleGroup radioButtonGroup = new ToggleGroup();
+        radioAny.setToggleGroup(radioButtonGroup);
+        radioAll.setToggleGroup(radioButtonGroup);
+        radioButtonGroup.selectedToggleProperty().addListener((observableValue, toggle, t1) -> getCurrentFiles());
     }
 
     public void setModel(TaggerModel taggerModel)
@@ -41,33 +52,31 @@ public class TaggerController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
-            tagTreeView.init(taggerModel.getTreeRoot());
 
-            // Docs: https://controlsfx.github.io/javadoc/11.1.0/org.controlsfx.controls/org/controlsfx/control/CheckTreeView.html
-            //       https://docs.oracle.com/javase/8/javafx/api/javafx/collections/ListChangeListener.Change.html
+            tagTreeView.init(taggerModel.getTreeRoot());
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
                 while (change.next())
                 {
                     if (change.wasAdded())
-                    {
-                        for (TreeItem<String> item : change.getAddedSubList())
-                        {
-                            taggerModel.getTreeRoot().findNode(item).activateNode();
-                        }
-                    }
+                        change.getAddedSubList().forEach(item -> taggerModel.getTreeRoot().findNode(item).activateNode(true));
                     if (change.wasRemoved())
-                    {
-                        for (TreeItem<String> item : change.getRemoved())
-                        {
-                            taggerModel.getTreeRoot().findNode(item).deactivateNode();
-                        }
-                    }
+                        change.getRemoved().forEach(item -> taggerModel.getTreeRoot().findNode(item).activateNode(false));
                 }
+                getCurrentFiles();
+            });
 
-                // Refresh currently selected files and the content pane displaying them
-                taggerModel.setFiles(ReadWriteManager.getTaggedFiles(taggerModel.getTreeRoot()));
-                refreshContentPane(taggerModel.firstFile());
+            excludeTreeView.init(taggerModel.getTreeRoot());
+            excludeTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
+            {
+                while (change.next())
+                {
+                    if (change.wasAdded())
+                        change.getAddedSubList().forEach(item -> taggerModel.getTreeRoot().findNode(item).excludeNode(true));
+                    if (change.wasRemoved())
+                        change.getRemoved().forEach(item -> taggerModel.getTreeRoot().findNode(item).excludeNode(false));
+                }
+                getCurrentFiles();
             });
         }
         else
@@ -100,9 +109,21 @@ public class TaggerController
         stage.show();
     }
 
+    @FXML
+    public void onDeselectInclude() { tagTreeView.getCheckModel().clearChecks(); }
+
+    @FXML
+    public void onDeselectExclude() { excludeTreeView.getCheckModel().clearChecks(); }
+
     //******************
     // Private methods *
     //******************
+
+    private void getCurrentFiles()
+    {
+        taggerModel.setFiles(ReadWriteManager.getTaggedFiles(new SearchCriteria(taggerModel.getTreeRoot(), radioAny.isSelected())));
+        refreshContentPane(taggerModel.firstFile());
+    }
 
     private void refreshContentPane(String fileName)
     {

@@ -4,6 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.image.ImageView?>
 <?import com.example.tagger.DynamicCheckTreeView?>
+<?import javafx.geometry.Insets?>
 
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
     <MenuBar useSystemMenuBar="true">
@@ -12,12 +13,43 @@
         </Menu>
     </MenuBar>
     <SplitPane dividerPositions="0.3" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
-        <!-- Left pane contains a scrollable tree view -->
-        <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
-            <DynamicCheckTreeView fx:id="tagTreeView" showRoot="false" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
-                <CheckBoxTreeItem value="root" independent="true"/>
-            </DynamicCheckTreeView>
-        </AnchorPane>
+        <!-- Left pane shows controls -->
+        <SplitPane dividerPositions="0.6" orientation="VERTICAL" maxHeight="Infinity" maxWidth="Infinity">
+            <!-- Top section contains the tag selector -->
+            <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+                <VBox maxWidth="Infinity" maxHeight="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                    <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="5.0"/>
+                    </padding>
+                    <AnchorPane>
+                        <Label text="Include tags:" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+                        <Button text="Deselect All" onAction="#onDeselectInclude" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0"/>
+                    </AnchorPane>
+                </VBox>
+                <DynamicCheckTreeView fx:id="tagTreeView" showRoot="false" AnchorPane.topAnchor="35.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                    <CheckBoxTreeItem value="root" independent="true"/>
+                </DynamicCheckTreeView>
+            </AnchorPane>
+            <!-- Bottom section contains the sort controls -->
+            <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+                <padding>
+                    <Insets bottom="10.0" left="10.0" right="10.0" top="5.0"/>
+                </padding>
+                <VBox spacing="5.0" maxWidth="Infinity" maxHeight="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0">
+                    <Label text="Search Criteria:"/>
+                    <RadioButton fx:id="radioAny" text="Files have ANY matching tag" selected="true"/>
+                    <RadioButton fx:id="radioAll" text="Files have ALL matching tags"/>
+                    <VBox prefHeight="5"/>
+                    <AnchorPane>
+                        <Label text="Exclude tags:" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+                        <Button text="Deselect All" onAction="#onDeselectExclude" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0"/>
+                    </AnchorPane>
+                    <DynamicCheckTreeView fx:id="excludeTreeView" showRoot="false" maxHeight="Infinity" VBox.vgrow="ALWAYS">
+                        <CheckBoxTreeItem value="root" independent="true"/>
+                    </DynamicCheckTreeView>
+                </VBox>
+            </AnchorPane>
+        </SplitPane>
         <!-- Right pane shows content, if available -->
         <AnchorPane fx:id="contentPane" minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
             <StackPane AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">

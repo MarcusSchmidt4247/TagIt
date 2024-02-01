@@ -233,25 +233,54 @@ public class ReadWriteManager
             System.out.println("ReadWriteManager.deleteTag: Tag ID = -1");
     }
 
-    // Return the list of names of every file in the managed directory that has at least one of its tags active
-    public static Vector<String> getTaggedFiles(TagNode root)
+    // Return the list of names of every file in the managed directory that meets the tag criteria
+    public static Vector<String> getTaggedFiles(SearchCriteria searchCriteria)
     {
         Vector<String> files = new Vector<>();
-        Vector<Integer> activeTagIds = root.getActiveNodeIds();
-        if (!activeTagIds.isEmpty())
+        if (!searchCriteria.getIncludeIds().isEmpty())
         {
-            // Create a comma-separated list of the IDs for every active tag that will be used in the SQL query
-            StringBuilder idList = new StringBuilder();
-            for (Integer id : activeTagIds)
-                idList.append(id).append(",");
-            idList.deleteCharAt(idList.length() - 1); // gets rid of the trailing comma
+            // Create a comma-separated list of the IDs for every included tag that will be used in the SQL query
+            StringBuilder includeList = new StringBuilder();
+            for (Integer id : searchCriteria.getIncludeIds())
+                includeList.append(id).append(",");
+            includeList.deleteCharAt(includeList.length() - 1); // gets rid of the trailing comma
 
-            String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
+            String url = String.format("jdbc:sqlite:%s/%s", searchCriteria.getPath(), "database.db");
             try (Connection connection = DriverManager.getConnection(url))
             {
-                // Select every file's name that is associated with a tag ID that is present in the comma-separated list of searched-for tags
-                String sql = String.format("SELECT DISTINCT name FROM File JOIN FileTags ON id=file_id WHERE tag_id IN (%s)", idList);
+                String table = "File";
+                String sql;
                 Statement statement = connection.createStatement();
+
+                if (!searchCriteria.getExcludeIds().isEmpty())
+                {
+                    // Create a comma-separated list of the IDs for every excluded tag that will be used in the SQL query
+                    StringBuilder excludeList = new StringBuilder();
+                    for (Integer id : searchCriteria.getExcludeIds())
+                        excludeList.append(id).append(",");
+                    excludeList.deleteCharAt(excludeList.length() - 1); // gets rid of the trailing comma
+
+                    // Create a temporary table that duplicates File but excludes rows associated with an excluded tag ID
+                    table = "TempFiles";
+                    sql = String.format("CREATE TEMPORARY TABLE %s AS SELECT File.* FROM File LEFT JOIN ", table) +
+                          String.format("(SELECT * FROM FileTags WHERE tag_id IN (%s)) ON id=file_id WHERE tag_id IS NULL", excludeList);
+                    statement.execute(sql);
+                }
+
+                if (searchCriteria.isAnyMatch() || searchCriteria.getIncludeIds().size() == 1)
+                {
+                    // Select every file's name that is associated with a tag ID that is present in the comma-separated list of searched-for tags
+                    sql = String.format("SELECT DISTINCT name FROM %s JOIN FileTags ON id=file_id WHERE tag_id IN (%s)", table, includeList);
+                }
+                else
+                {
+                    // Create a temporary table that counts the degree of participation each file has in the tag selection (e.g., it might have 2 out of 3 required tags)
+                    sql = String.format("CREATE TEMPORARY TABLE TagParticipation AS SELECT file_id, count(tag_id) as participation FROM FileTags WHERE tag_id IN (%s) GROUP BY file_id", includeList);
+                    statement.execute(sql);
+                    // Select every file's name that has total participation
+                    sql = String.format("SELECT name FROM %s JOIN TagParticipation ON id=file_id WHERE participation=%d", table, searchCriteria.getIncludeIds().size());
+                }
+
                 ResultSet results = statement.executeQuery(sql);
                 while (results.next())
                     files.add(results.getString(1));
