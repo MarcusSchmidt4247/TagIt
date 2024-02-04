@@ -5,6 +5,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import com.example.tagger.DynamicCheckTreeView?>
 <?import javafx.geometry.Insets?>
+<?import com.example.tagger.MediaControlView?>
 
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
     <MenuBar useSystemMenuBar="true">
@@ -55,6 +56,7 @@
             <StackPane AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
                 <Label fx:id="errorLabel"/>
                 <ImageView fx:id="imageView" preserveRatio="true"/>
+                <MediaControlView fx:id="mediaView" visible="false"/>
             </StackPane>
         </AnchorPane>
     </SplitPane>

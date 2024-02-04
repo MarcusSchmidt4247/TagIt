@@ -5,6 +5,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.geometry.Insets?>
 <?import com.example.tagger.DynamicCheckTreeView?>
+<?import com.example.tagger.MediaControlView?>
 
 <VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.example.tagger.ImporterController" stylesheets="@stylesheets.css"
       alignment="CENTER" spacing="10.0" maxWidth="Infinity" maxHeight="Infinity">
@@ -25,6 +26,7 @@
             <StackPane fx:id="contentPane" styleClass="outlined" VBox.vgrow="ALWAYS">
                 <Label fx:id="errorLabel"/>
                 <ImageView fx:id="imageView" preserveRatio="true"/>
+                <MediaControlView fx:id="mediaView" visible="false"/>
             </StackPane>
             <CheckBox fx:id="copyCheckBox" text="Import copy of file"/>
         </VBox>

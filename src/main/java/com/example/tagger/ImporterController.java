@@ -21,6 +21,8 @@ public class ImporterController
     @FXML
     private ImageView imageView;
     @FXML
+    private MediaControlView mediaView;
+    @FXML
     private DynamicCheckTreeView tagTreeView;
 
     @FXML
@@ -53,6 +55,10 @@ public class ImporterController
          * so use a custom offset binding. */
         imageView.fitHeightProperty().bind(new OffsetDoubleBinding(contentPane.heightProperty(), 10.0));
         imageView.fitWidthProperty().bind(new OffsetDoubleBinding(contentPane.widthProperty(), 10.0));
+
+        // Set the media view to scale with the window
+        mediaView.fitHeightProperty().bind(new OffsetDoubleBinding(contentPane.heightProperty(), 10.0));
+        mediaView.fitWidthProperty().bind(new OffsetDoubleBinding(contentPane.widthProperty(), 10.0));
 
         importerModel.getFiles().addListener((ListChangeListener<File>) change ->
         {
@@ -107,6 +113,7 @@ public class ImporterController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
+            mediaView.init();
 
             // Initialize and add a listener to the (currently empty) list of checked items
             tagTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
@@ -257,20 +264,35 @@ public class ImporterController
                 errorLabel.setVisible(false);
 
             fileNameLabel.setText(String.format("Current File: %s", importerModel.getFiles().get(importerModel.importIndex).getName()));
-            try (FileInputStream input = new FileInputStream(importerModel.getFiles().get(importerModel.importIndex)))
+            if (importerModel.getFiles().get(importerModel.importIndex).getName().toLowerCase().matches(".+[.](jpe?g|png)$"))
             {
-                Image image = new Image(input);
-                imageView.setImage(image);
+                try (FileInputStream input = new FileInputStream(importerModel.getFiles().get(importerModel.importIndex)))
+                {
+                    Image image = new Image(input);
+                    imageView.setImage(image);
 
-                if (!imageView.isVisible())
-                    imageView.setVisible(true);
+                    if (!imageView.isVisible())
+                        imageView.setVisible(true);
+                    if (mediaView.isVisible())
+                        mediaView.setVisibility(false);
+                }
+                catch (IOException e)
+                {
+                    errorLabel.setText(String.format("Unable to load file \"%s\"", importerModel.getFiles().get(importerModel.importIndex).getName()));
+                    errorLabel.setVisible(true);
+                    imageView.setVisible(false);
+                    mediaView.setVisibility(false);
+                    throw new RuntimeException(e);
+                }
             }
-            catch (IOException e)
+            else if (importerModel.getFiles().get(importerModel.importIndex).getName().toLowerCase().matches(".+[.](mp[34])$"))
             {
-                errorLabel.setText(String.format("Unable to load file \"%s\"", importerModel.getFiles().get(importerModel.importIndex).getName()));
-                errorLabel.setVisible(true);
-                imageView.setVisible(false);
-                throw new RuntimeException(e);
+                mediaView.load(importerModel.getFiles().get(importerModel.importIndex));
+
+                if (!mediaView.isVisible())
+                    mediaView.setVisibility(true);
+                if (imageView.isVisible())
+                    imageView.setVisible(false);
             }
         }
         else
@@ -279,6 +301,7 @@ public class ImporterController
             errorLabel.setVisible(true);
             fileNameLabel.setText("Current File:");
             imageView.setVisible(false);
+            mediaView.setVisibility(false);
         }
     }
 

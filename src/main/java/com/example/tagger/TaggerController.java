@@ -28,6 +28,8 @@ public class TaggerController
     @FXML
     private ImageView imageView;
     @FXML
+    private MediaControlView mediaView;
+    @FXML
     private RadioButton radioAny;
     @FXML
     private RadioButton radioAll;
@@ -39,6 +41,10 @@ public class TaggerController
         // Set the image view to scale with the window
         imageView.fitWidthProperty().bind(contentPane.widthProperty());
         imageView.fitHeightProperty().bind(contentPane.heightProperty());
+
+        // Set the media view to scale with the window
+        mediaView.fitHeightProperty().bind(contentPane.heightProperty());
+        mediaView.fitWidthProperty().bind(contentPane.widthProperty());
 
         // Add the radio buttons to a ToggleGroup to enforce mutual exclusivity and add a listener that will refresh files when a toggle is changed
         ToggleGroup radioButtonGroup = new ToggleGroup();
@@ -52,6 +58,7 @@ public class TaggerController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
+            mediaView.init();
 
             tagTreeView.init(taggerModel.getTreeRoot());
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
@@ -130,25 +137,41 @@ public class TaggerController
         if (fileName != null)
         {
             String filePath = String.format("%s/Storage/%s", taggerModel.getPath(), fileName);
-            try (FileInputStream input = new FileInputStream(filePath))
+            if (fileName.toLowerCase().matches(".+[.](jpe?g|png)$"))
             {
-                Image image = new Image(input);
-                imageView.setImage(image);
+                try (FileInputStream input = new FileInputStream(filePath))
+                {
+                    Image image = new Image(input);
+                    imageView.setImage(image);
 
-                if (!imageView.isVisible())
-                    imageView.setVisible(true);
+                    if (!imageView.isVisible())
+                        imageView.setVisible(true);
+                    if (mediaView.isVisible())
+                        mediaView.setVisibility(false);
+                }
+                catch(IOException e)
+                {
+                    errorLabel.setText(String.format("Unable to load image file \"%s\"", fileName));
+                    imageView.setVisible(false);
+                    mediaView.setVisibility(false);
+                    throw new RuntimeException(e);
+                }
             }
-            catch (IOException e)
+            else if (fileName.toLowerCase().matches(".+[.](mp[34])$"))
             {
-                errorLabel.setText(String.format("Unable to load file \"%s\"", fileName));
-                imageView.setVisible(false);
-                throw new RuntimeException(e);
+                mediaView.load(new File(filePath));
+
+                if (!mediaView.isVisible())
+                    mediaView.setVisibility(true);
+                if (imageView.isVisible())
+                    imageView.setVisible(false);
             }
         }
         else
         {
             errorLabel.setText("No files selected");
             imageView.setVisible(false);
+            mediaView.setVisibility(false);
         }
     }
 }
