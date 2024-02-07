@@ -76,13 +76,20 @@ public class TagNode
     }
 
     private int activationWeight;
+    private int parentActivationWeight;
     public void activateNode(boolean on)
     {
         activationWeight += on ? 1 : -1;
         for (TagNode child : getChildren())
-            child.activateNode(on);
+            child.activateChildNode(on);
+    }
+    public void activateChildNode(boolean on)
+    {
+        parentActivationWeight += on ? 1 : -1;
+        activateNode(on);
     }
     public boolean isActive() { return activationWeight > 0; }
+    public boolean isSelfActivated() { return activationWeight > parentActivationWeight; }
 
     private int exclusionWeight = 0;
     public void excludeNode(boolean on)
@@ -111,6 +118,7 @@ public class TagNode
         this.tag = new SimpleStringProperty(tag);
         this.id = id;
         activationWeight = 0;
+        parentActivationWeight = 0;
     }
 
     public boolean equals(TagNode other)
@@ -161,6 +169,16 @@ public class TagNode
 
             return node;
         }
+    }
+
+    // Return a string of comma-separated IDs for all the nodes in the subtree that is rooted at this node
+    public String getSubtreeIds()
+    {
+        StringBuilder idList = new StringBuilder();
+        idList.append(id).append(',');
+        getChildren().forEach(child -> idList.append(child.getSubtreeIds()).append(','));
+        idList.deleteCharAt(idList.length()-1);
+        return idList.toString();
     }
 
     public void delete()
