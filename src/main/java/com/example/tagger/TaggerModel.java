@@ -4,68 +4,75 @@ import java.util.Vector;
 
 public class TaggerModel
 {
-    private final String PATH;
-    public String getPath() { return PATH; }
+    private final String path;
+    public String getPath() { return path; }
 
-    private final TagNode TAG_TREE_ROOT;
-    public TagNode getTreeRoot() { return TAG_TREE_ROOT; }
+    private final TagNode tagTreeRoot;
+    public TagNode getTreeRoot() { return tagTreeRoot; }
 
-    private final Vector<String> FILES = new Vector<>();
+    private final Vector<String> files = new Vector<>();
     private int currFileIndex = -1;
     public String firstFile()
     {
-        if (!FILES.isEmpty())
+        if (!files.isEmpty())
         {
             currFileIndex = 0;
-            return FILES.getFirst();
+            return files.getFirst();
         }
+        else
+            return null;
+    }
+    public String currentFile()
+    {
+        if (!files.isEmpty())
+            return files.get(currFileIndex);
         else
             return null;
     }
     public String nextFile()
     {
-        if (!FILES.isEmpty())
+        if (!files.isEmpty())
         {
             currFileIndex++;
-            if (currFileIndex >= FILES.size())
+            if (currFileIndex >= files.size())
                 currFileIndex = 0;
 
-            return FILES.get(currFileIndex);
+            return files.get(currFileIndex);
         }
         else
             return null;
     }
     public String prevFile()
     {
-        if (!FILES.isEmpty())
+        if (!files.isEmpty())
         {
             currFileIndex--;
             if (currFileIndex < 0)
-                currFileIndex = FILES.size() - 1;
+                currFileIndex = files.size() - 1;
 
-            return FILES.get(currFileIndex);
+            return files.get(currFileIndex);
         }
         return null;
     }
     public void setFiles(Vector<String> files)
     {
         currFileIndex = 0;
-        FILES.removeAllElements();
-        FILES.addAll(files);
+        this.files.removeAllElements();
+        this.files.addAll(files);
     }
     public void printFiles()
     {
         System.out.println("****\nCurrent files:");
-        for (String file : FILES)
+        for (String file : files)
         {
             System.out.println(file);
         }
         System.out.println("****\n");
     }
 
-    public TaggerModel(final String PATH)
+    public TaggerModel(final String path)
     {
-        this.PATH = PATH;
-        TAG_TREE_ROOT = new TagNode(PATH);
+        this.path = path;
+        tagTreeRoot = new TagNode(path);
     }
 }

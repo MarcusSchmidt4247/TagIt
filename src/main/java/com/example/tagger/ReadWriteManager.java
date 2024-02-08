@@ -233,6 +233,67 @@ public class ReadWriteManager
             System.out.println("ReadWriteManager.deleteTag: Tag ID = -1");
     }
 
+    // Return every tag associated with the provided file
+    public static Vector<TagNode> getFileTags(TagNode root, String fileName)
+    {
+        Vector<TagNode> tags = new Vector<>();
+
+        String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
+        {
+            // Get this file's ID
+            Statement statement = connection.createStatement();
+            String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", fileName);
+            ResultSet results = statement.executeQuery(sql);
+            if (results.next())
+            {
+                int fileId = results.getInt(1);
+
+                // Get the IDs for every tag associated with this file
+                sql = String.format("SELECT id FROM Tag JOIN FileTags ON id=tag_id WHERE file_id=%d", fileId);
+                results = statement.executeQuery(sql);
+                Vector<Integer> tagIds = new Vector<>();
+                while (results.next())
+                    tagIds.add(results.getInt(1));
+
+                // For each tag ID, reconstruct its lineage and follow it to the equivalent TagNode
+                for (int id : tagIds)
+                {
+                    Vector<Integer> lineage = new Vector<>();
+                    lineage.add(id);
+                    int currentId = id;
+                    do
+                    {
+                        sql = String.format("SELECT parent_id FROM TagParentage WHERE child_id=%d", currentId);
+                        results = statement.executeQuery(sql);
+                        if (results.next())
+                        {
+                            currentId = results.getInt(1);
+                            lineage.insertElementAt(currentId, 0);
+                        }
+                        else
+                            currentId = -1;
+                    } while (currentId != -1);
+
+                    TagNode tag = root.findNode(lineage);
+                    if (tag != null)
+                        tags.add(tag);
+                    else
+                        System.out.println("ReadWriteManager.getFileTags: Unable to follow lineage to TagNode");
+                }
+            }
+            else
+                System.out.printf("ReadWriteManager.getFileTags: Unable to retrieve file ID for \"%s\"\n", fileName);
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        return tags;
+    }
+
     // Return the list of names of every file in the managed directory that meets the tag criteria
     public static Vector<String> getTaggedFiles(SearchCriteria searchCriteria)
     {
@@ -339,6 +400,72 @@ public class ReadWriteManager
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    // Associate the provided file and tag by inserting a row into the FileTags table
+    public static void addFileTag(String file, TagNode tag)
+    {
+        if (tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                Statement statement = connection.createStatement();
+                statement.execute("PRAGMA foreign_keys = ON");
+
+                String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", file);
+                ResultSet results = statement.executeQuery(sql);
+                if (results.next())
+                {
+                    int fileId = results.getInt(1);
+                    sql = String.format("INSERT INTO FileTags VALUES(%d, %d)", fileId, tag.getId());
+                    statement.execute(sql);
+                }
+                else
+                    System.out.printf("ReadWriteManager.addFileTag: Unable to retrieve file ID for \"%s\"\n", file);
+
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.addFileTag: Tag ID = -1");
+    }
+
+    // Dissociate the provided file and tag by deleting a row from the FileTags table
+    public static void deleteFileTag(String file, TagNode tag)
+    {
+        if (tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                Statement statement = connection.createStatement();
+                statement.execute("PRAGMA foreign_keys = ON");
+
+                String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", file);
+                ResultSet results = statement.executeQuery(sql);
+                if (results.next())
+                {
+                    int fileId = results.getInt(1);
+                    sql = String.format("DELETE FROM FileTags WHERE file_id=%d AND tag_id=%d", fileId, tag.getId());
+                    statement.execute(sql);
+                }
+                else
+                    System.out.printf("ReadWriteManager.deleteFileTag: Unable to retrieve file ID for \"%s\"\n", file);
+
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.deleteFileTag: Tag ID = -1");
     }
 
     /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),

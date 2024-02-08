@@ -14,6 +14,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.*;
+import java.util.Vector;
 
 public class TaggerController
 {
@@ -22,9 +23,17 @@ public class TaggerController
     @FXML
     private DynamicCheckTreeView excludeTreeView;
     @FXML
+    private DynamicCheckTreeView editTreeView;
+    @FXML
+    private SplitPane mainSplitPane;
+    @FXML
     private AnchorPane contentPane;
     @FXML
+    private AnchorPane editPane;
+    @FXML
     private Label errorLabel;
+    @FXML
+    private Label fileNameLabel;
     @FXML
     private ImageView imageView;
     @FXML
@@ -35,6 +44,8 @@ public class TaggerController
     private RadioButton radioAll;
 
     private TaggerModel taggerModel;
+    private double editPanePos = 0.7;
+    private boolean editEnabled = true;
 
     public void initialize()
     {
@@ -85,6 +96,10 @@ public class TaggerController
                 }
                 getCurrentFiles();
             });
+
+            // Initialize and then hide the edit pane
+            editTreeView.init(taggerModel.getTreeRoot());
+            onToggleEdit();
         }
         else
             throw new IllegalStateException("Model can only be set once");
@@ -97,6 +112,25 @@ public class TaggerController
             refreshContentPane(taggerModel.prevFile());
         else if (event.getCode() == KeyCode.RIGHT)
             refreshContentPane(taggerModel.nextFile());
+    }
+
+    @FXML
+    public void onToggleEdit()
+    {
+        editEnabled = !editEnabled;
+        if (editEnabled)
+        {
+            // Add the edit pane to the main split pane and restore its divider position
+            mainSplitPane.getItems().add(editPane);
+            mainSplitPane.setDividerPosition(1, editPanePos);
+        }
+        else
+        {
+            // Save the current divider position and remove the edit pane from the main split pane
+            editPanePos = mainSplitPane.getDividerPositions()[1];
+            mainSplitPane.getItems().remove(editPane);
+        }
+        refreshEditPane();
     }
 
     @FXML
@@ -148,10 +182,13 @@ public class TaggerController
                         imageView.setVisible(true);
                     if (mediaView.isVisible())
                         mediaView.setVisibility(false);
+                    if (errorLabel.isVisible())
+                        errorLabel.setVisible(false);
                 }
                 catch(IOException e)
                 {
                     errorLabel.setText(String.format("Unable to load image file \"%s\"", fileName));
+                    errorLabel.setVisible(true);
                     imageView.setVisible(false);
                     mediaView.setVisibility(false);
                     throw new RuntimeException(e);
@@ -165,13 +202,58 @@ public class TaggerController
                     mediaView.setVisibility(true);
                 if (imageView.isVisible())
                     imageView.setVisible(false);
+                if (errorLabel.isVisible())
+                    imageView.setVisible(false);
             }
         }
         else
         {
             errorLabel.setText("No files selected");
+            errorLabel.setVisible(true);
             imageView.setVisible(false);
             mediaView.setVisibility(false);
         }
+
+        if (editEnabled)
+            refreshEditPane();
     }
+
+    private void refreshEditPane()
+    {
+        if (taggerModel.currentFile() != null)
+        {
+            fileNameLabel.setText(taggerModel.currentFile());
+
+            // Disable the edit tag tree's checked item listener, set the current file's tags to be checked in the tree, and reapply the listener
+            editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
+            editTreeView.getCheckModel().clearChecks();
+            Vector<TagNode> tags = ReadWriteManager.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
+            tags.forEach(tag -> ((CheckBoxTreeItem<String>) editTreeView.findItem(tag, true)).setSelected(true));
+            editTreeView.getCheckModel().getCheckedItems().addListener(editTreeListener);
+        }
+        else
+        {
+            fileNameLabel.setText("");
+            editTreeView.getCheckModel().clearChecks();
+        }
+    }
+
+    // Create a listener for the edit tag tree's checked item list that adds to or removes from the file's tags as tree items are (un)checked
+    private final ListChangeListener<TreeItem<String>> editTreeListener = new ListChangeListener<>()
+    {
+        @Override
+        public void onChanged(Change<? extends TreeItem<String>> change)
+        {
+            if (taggerModel.currentFile() != null)
+            {
+                while (change.next())
+                {
+                    if (change.wasAdded())
+                        change.getAddedSubList().forEach(item -> ReadWriteManager.addFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
+                    if (change.wasRemoved())
+                        change.getRemoved().forEach(item -> ReadWriteManager.deleteFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
+                }
+            }
+        }
+    };
 }

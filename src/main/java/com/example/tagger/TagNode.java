@@ -171,6 +171,31 @@ public class TagNode
         }
     }
 
+    /* Search the (sub)tree starting with this node for a chain of nodes with IDs equal to those in the provided vector
+     * and return the TagNode at the end if it exists, or null if not. */
+    public TagNode findNode(Vector<Integer> lineage)
+    {
+        TagNode currentNode = this;
+        for (int id : lineage)
+        {
+            boolean foundMatch = false;
+            for (TagNode child : currentNode.getChildren())
+            {
+                if (child.getId() == id)
+                {
+                    foundMatch = true;
+                    currentNode = child;
+                    break;
+                }
+            }
+
+            if (!foundMatch)
+                return null;
+        }
+
+        return currentNode;
+    }
+
     // Return a string of comma-separated IDs for all the nodes in the subtree that is rooted at this node
     public String getSubtreeIds()
     {
