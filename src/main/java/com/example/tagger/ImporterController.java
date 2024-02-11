@@ -224,36 +224,70 @@ public class ImporterController
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
                 importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
-            //******************************************************************
-            // Copy file to program's Storage directory and add to "files.txt" *
-            //******************************************************************
             File importFile = importerModel.getFiles().get(importerModel.importIndex);
             Path source = Path.of(importFile.getAbsolutePath());
             Path target = Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), importFile.getName()));
-            try
-            {
-                Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
-                ReadWriteManager.saveFile(taggerModel.getPath(), importFile.getName(), importerModel.getAppliedTags());
-                importerModel.getFiles().remove(importerModel.importIndex);
-            }
-            catch (FileAlreadyExistsException e)
-            {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setGraphic(null);
-                alert.setContentText(String.format("File with name \"%s\" has already been imported", importerModel.getFiles().get(importerModel.importIndex).getName()));
-                alert.showAndWait();
-                importerModel.getFiles().remove(importerModel.importIndex);
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
+            importFile(source, target);
         }
     }
 
     //******************
     // Private methods *
     //******************
+
+    private void importFile(Path source, Path target)
+    {
+        try
+        {
+            // Copy the file to the program Storage directory and record it in the database
+            Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+            ReadWriteManager.saveFile(taggerModel.getPath(), target.getFileName().toString(), importerModel.getAppliedTags());
+            importerModel.getFiles().remove(importerModel.importIndex);
+        }
+        catch (FileAlreadyExistsException e)
+        {
+            // If a file with this name already exists in the managed directory, alert the user and give them the option to rename the new file
+            Alert alert = new Alert(Alert.AlertType.NONE);
+            alert.setContentText(String.format("A file with name \"%s\" already exists", importerModel.getFiles().get(importerModel.importIndex).getName()));
+            alert.getButtonTypes().add(ButtonType.CANCEL);
+            alert.getButtonTypes().add(new ButtonType("Rename", ButtonBar.ButtonData.RIGHT));
+            alert.showAndWait();
+            if (alert.getResult() != ButtonType.CANCEL)
+            {
+                // If the user chose to rename the file, open a text input dialog
+                boolean valid;
+                String name = null;
+                do
+                {
+                    TextInputDialog dialog;
+                    if (name == null)
+                    {
+                        dialog = new TextInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
+                        dialog.setHeaderText("Enter a new file name:");
+                        dialog.getDialogPane().setMinWidth(300);
+                    }
+                    else
+                    {
+                        dialog = new TextInputDialog(name);
+                        dialog.setHeaderText("Name cannot contain slashes or quotes and must\nhave a valid extension.\n\nEnter a new file name:");
+                    }
+                    dialog.setTitle("");
+                    dialog.setGraphic(null);
+                    dialog.showAndWait();
+                    name = dialog.getResult(); // will return null if user cancels dialog
+                    valid = (name != null && ReadWriteManager.validInput(name) && ExtensionFilter.validExtension(name));
+                } while (name != null && !valid);
+
+                // If the user entered a valid string, import it with the new name
+                if (valid)
+                    importFile(source, Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), name)));
+            }
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 
     private void refreshContentPane()
     {
