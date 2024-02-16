@@ -1,6 +1,10 @@
 /* Reference guide: https://docs.oracle.com/javafx/2/api/javafx/scene/doc-files/cssref.html
    Patterned after: https://www.w3.org/TR/css-backgrounds-3 */
 
+.icon-button {
+    -fx-background-color: transparent;
+}
+
 .outlined {
     -fx-border-color: #757575;
     -fx-border-width: 2;

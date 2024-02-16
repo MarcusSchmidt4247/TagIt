@@ -12,6 +12,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.*;
 import java.util.Vector;
@@ -39,9 +40,15 @@ public class TaggerController
     @FXML
     private MediaControlView mediaView;
     @FXML
-    private RadioButton radioAny;
+    private ChoiceBox<String> criteriaChoiceBox;
     @FXML
-    private RadioButton radioAll;
+    private ChoiceBox<String> sortChoiceBox;
+    @FXML
+    private CheckBox excludeCheckBox;
+    @FXML
+    private Button expandButton;
+    @FXML
+    private Button deselectButton;
 
     private TaggerModel taggerModel;
     private double editPanePos = 0.7;
@@ -57,11 +64,18 @@ public class TaggerController
         mediaView.fitHeightProperty().bind(contentPane.heightProperty());
         mediaView.fitWidthProperty().bind(contentPane.widthProperty());
 
-        // Add the radio buttons to a ToggleGroup to enforce mutual exclusivity and add a listener that will refresh files when a toggle is changed
-        ToggleGroup radioButtonGroup = new ToggleGroup();
-        radioAny.setToggleGroup(radioButtonGroup);
-        radioAll.setToggleGroup(radioButtonGroup);
-        radioButtonGroup.selectedToggleProperty().addListener((observableValue, toggle, t1) -> getCurrentFiles());
+        // Populate the sort method ChoiceBox, default to the first option, and create a listener to refresh the current files every time it's changed
+        for (SearchCriteria.SortMethod method : SearchCriteria.SortMethod.values())
+            sortChoiceBox.getItems().add(method.description);
+        sortChoiceBox.getSelectionModel().select(0);
+        sortChoiceBox.setOnAction(actionEvent -> getCurrentFiles());
+
+        // Set the search criteria ChoiceBox to the first option by default and refresh the current files every time it's changed
+        criteriaChoiceBox.getSelectionModel().select(0);
+        criteriaChoiceBox.setOnAction(actionEvent -> getCurrentFiles());
+
+        // Refresh the current files every time the exclude tags search criteria is toggled
+        excludeCheckBox.selectedProperty().addListener((observableValue, aBoolean, t1) -> getCurrentFiles());
     }
 
     public void setModel(TaggerModel taggerModel)
@@ -94,7 +108,10 @@ public class TaggerController
                     if (change.wasRemoved())
                         change.getRemoved().forEach(item -> taggerModel.getTreeRoot().findNode(item).excludeNode(false));
                 }
-                getCurrentFiles();
+
+                // Only update the current list of files if excluded tags are an enabled search criteria
+                if (excludeCheckBox.isSelected())
+                    getCurrentFiles();
             });
 
             // Initialize and then hide the edit pane
@@ -156,14 +173,40 @@ public class TaggerController
     @FXML
     public void onDeselectExclude() { excludeTreeView.getCheckModel().clearChecks(); }
 
+    @FXML
+    public void onToggleExcludeView()
+    {
+        excludeTreeView.setVisible(!excludeTreeView.isVisible());
+        deselectButton.setVisible(excludeTreeView.isVisible());
+        String icon = excludeTreeView.isVisible() ? "bxs-down-arrow" : "bxs-right-arrow";
+        expandButton.setGraphic(new FontIcon(icon));
+    }
+
     //******************
     // Private methods *
     //******************
 
     private void getCurrentFiles()
     {
-        taggerModel.setFiles(ReadWriteManager.getTaggedFiles(new SearchCriteria(taggerModel.getTreeRoot(), radioAny.isSelected())));
+        // Gather the criteria for which files to select
+        boolean anyMatch = (criteriaChoiceBox.getSelectionModel().getSelectedIndex() == 0);
+        boolean excluding = excludeCheckBox.isSelected();
+        SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), anyMatch, excluding, getSortMethod());
+
+        // Select files that meet the search criteria and refresh the content pane
+        taggerModel.setFiles(ReadWriteManager.getTaggedFiles(searchCriteria));
         refreshContentPane(taggerModel.firstFile());
+    }
+
+    // Return a SortMethod instance that corresponds to the item currently selected in the sortChoiceBox control
+    private SearchCriteria.SortMethod getSortMethod()
+    {
+        SearchCriteria.SortMethod[] methods = SearchCriteria.SortMethod.values();
+        int index = sortChoiceBox.getSelectionModel().getSelectedIndex();
+        if (index >= 0 && index < methods.length)
+            return methods[index];
+        else
+            return methods[0];
     }
 
     private void refreshContentPane(String fileName)

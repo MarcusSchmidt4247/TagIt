@@ -4,6 +4,19 @@ import java.util.Vector;
 
 public class SearchCriteria
 {
+    public enum SortMethod
+    {
+        NAME ("Alphabetically"),
+        OLD_NEW ("Old to new"),
+        NEW_OLD ("New to old"),
+        RANDOM ("Random");
+
+        public final String description;
+        SortMethod(String description) { this.description = description; }
+    }
+    private final SortMethod sortMethod;
+    public SortMethod getSortMethod() { return sortMethod; }
+
     private final Vector<Integer> includeAny = new Vector<>();
     public Vector<Integer> getIncludeAny() { return includeAny; }
 
@@ -13,23 +26,27 @@ public class SearchCriteria
     private final Vector<Integer> excludeIds = new Vector<>();
     public Vector<Integer> getExcludeIds() { return excludeIds; }
 
-    private final boolean anyMatch;
-    public boolean isAnyMatch() { return anyMatch; }
-
     private final String path;
     public String getPath() { return path; }
 
-    public SearchCriteria(TagNode root, boolean anyMatch)
+    private final boolean anyMatch;
+    public boolean isAnyMatch() { return anyMatch; }
+
+    private final boolean excluding;
+
+    public SearchCriteria(TagNode root, boolean anyMatch, boolean excluding, SortMethod sortMethod)
     {
-        this.anyMatch = anyMatch;
         path = root.getRootPath();
+        this.anyMatch = anyMatch;
+        this.excluding = excluding;
+        this.sortMethod = sortMethod;
         getNodeIds(root);
     }
 
     // Return a list of the activated nodes' IDs that are within this node's subtree
     private void getNodeIds(TagNode tag)
     {
-        if (tag.isExcluded())
+        if (excluding && tag.isExcluded())
             excludeIds.add(tag.getId());
         else if (tag.isActive())
         {

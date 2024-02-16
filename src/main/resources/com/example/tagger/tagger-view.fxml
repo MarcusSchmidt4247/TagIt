@@ -6,8 +6,11 @@
 <?import com.example.tagger.DynamicCheckTreeView?>
 <?import javafx.geometry.Insets?>
 <?import com.example.tagger.MediaControlView?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController">
+<VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController"  stylesheets="@stylesheets.css">
     <MenuBar useSystemMenuBar="true">
         <Menu text="Files">
             <MenuItem text="Enable Editing" onAction="#onToggleEdit"/>
@@ -16,7 +19,7 @@
     </MenuBar>
     <SplitPane fx:id="mainSplitPane" dividerPositions="0.3,0.7" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- Left pane shows controls -->
-        <SplitPane dividerPositions="0.6" orientation="VERTICAL" maxHeight="Infinity" maxWidth="Infinity">
+        <SplitPane dividerPositions="0.75" orientation="VERTICAL" maxHeight="Infinity" maxWidth="Infinity">
             <!-- Top section contains the tag selector -->
             <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
                 <VBox maxWidth="Infinity" maxHeight="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
@@ -35,18 +38,41 @@
             <!-- Bottom section contains the sort controls -->
             <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
                 <padding>
-                    <Insets bottom="10.0" left="10.0" right="10.0" top="5.0"/>
+                    <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
                 </padding>
-                <VBox spacing="5.0" maxWidth="Infinity" maxHeight="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0">
-                    <Label text="Search Criteria:"/>
-                    <RadioButton fx:id="radioAny" text="Files have ANY matching tag" selected="true"/>
-                    <RadioButton fx:id="radioAll" text="Files have ALL matching tags"/>
-                    <VBox prefHeight="5"/>
+                <VBox spacing="5" maxWidth="Infinity" maxHeight="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0">
+                    <GridPane maxWidth="Infinity" maxHeight="Infinity" vgap="7.5">
+                        <columnConstraints>
+                            <ColumnConstraints/>
+                            <ColumnConstraints hgrow="ALWAYS" halignment="RIGHT"/>
+                        </columnConstraints>
+                        <!-- Row 1 -->
+                        <Label text="Sort Method:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <ChoiceBox fx:id="sortChoiceBox" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <!-- Row 2 -->
+                        <Label text="Search Criteria:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <ChoiceBox fx:id="criteriaChoiceBox" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <items>
+                                <FXCollections fx:factory="observableArrayList">
+                                    <String fx:value="Any matching tag"/>
+                                    <String fx:value="All matching tags"/>
+                                </FXCollections>
+                            </items>
+                        </ChoiceBox>
+                    </GridPane>
+                    <!-- Row 3 -->
                     <AnchorPane>
-                        <Label text="Exclude tags:" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
-                        <Button text="Deselect All" onAction="#onDeselectExclude" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0"/>
+                        <padding> <Insets top="4"/> </padding>
+                        <Button fx:id="expandButton" onAction="#onToggleExcludeView" styleClass="icon-button" scaleX="0.7" scaleY="0.7" AnchorPane.leftAnchor="-10" AnchorPane.bottomAnchor="0" AnchorPane.topAnchor="0">
+                            <graphic>
+                                <FontIcon iconLiteral="bxs-right-arrow"/>
+                            </graphic>
+                        </Button>
+                        <CheckBox text="Exclude tags:" fx:id="excludeCheckBox" AnchorPane.leftAnchor="15" AnchorPane.bottomAnchor="0" AnchorPane.topAnchor="0"/>
+                        <Button fx:id="deselectButton" text="Deselect All" onAction="#onDeselectExclude" visible="false" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0" AnchorPane.topAnchor="0"/>
                     </AnchorPane>
-                    <DynamicCheckTreeView fx:id="excludeTreeView" showRoot="false" maxHeight="Infinity" VBox.vgrow="ALWAYS">
+                    <!-- Row 4 -->
+                    <DynamicCheckTreeView fx:id="excludeTreeView" showRoot="false" visible="false" maxHeight="Infinity" VBox.vgrow="ALWAYS">
                         <CheckBoxTreeItem value="root" independent="true"/>
                     </DynamicCheckTreeView>
                 </VBox>
@@ -73,6 +99,12 @@
                 <DynamicCheckTreeView fx:id="editTreeView" showRoot="false" maxHeight="Infinity" VBox.vgrow="ALWAYS">
                     <CheckBoxTreeItem value="root" independent="true"/>
                 </DynamicCheckTreeView>
+                <HBox alignment="CENTER_RIGHT">
+                    <padding>
+                        <Insets right="5.0" bottom="5.0"/>
+                    </padding>
+                    <Button text="Delete File"/>
+                </HBox>
             </VBox>
         </AnchorPane>
     </SplitPane>

@@ -28,7 +28,7 @@ public class ReadWriteManager
                         if (connection.isValid(5))
                         {
                             // If successful, create the database tables
-                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
+                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL)";
                             String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
                             String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
                                     "tag_id INTEGER NOT NULL," +
@@ -352,6 +352,24 @@ public class ReadWriteManager
                     sql = String.format("SELECT DISTINCT name FROM %s JOIN %s", table, joins);
                 }
 
+                switch (searchCriteria.getSortMethod())
+                {
+                    case NAME:
+                        sql = sql.concat(" ORDER BY name ASC");
+                        break;
+                    case OLD_NEW:
+                        sql = sql.concat(" ORDER BY created ASC");
+                        break;
+                    case NEW_OLD:
+                        sql = sql.concat(" ORDER BY created DESC");
+                        break;
+                    case RANDOM:
+                        sql = sql.concat(" ORDER BY RANDOM()");
+                        break;
+                    default:
+                        System.out.println("ReadWriteManager.getTaggedFiles: Unrecognized sort method");
+                }
+
                 ResultSet results = statement.executeQuery(sql);
                 while (results.next())
                     files.add(results.getString(1));
@@ -366,17 +384,28 @@ public class ReadWriteManager
     }
 
     // Save a newly imported file to the database
-    public static void saveFile(final String PATH, String fileName, Vector<TagNode> tags)
+    public static void saveFile(final String PATH, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
     {
         if (!tags.isEmpty())
         {
             String url = String.format("jdbc:sqlite:%s/%s", PATH, "database.db");
             try (Connection connection = DriverManager.getConnection(url))
             {
-                // Insert the filename into the File table
-                String sql = String.format("INSERT INTO File(name) VALUES(\"%s\")", fileName);
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
+
+                // Convert the file's creation time from milliseconds to seconds since the epoch, or retrieve the current time if the file's attribute was unavailable
+                long created;
+                if (fileCreatedMillis != -1)
+                    created = fileCreatedMillis / 1000;
+                else
+                {
+                    ResultSet result = statement.executeQuery("SELECT unixepoch('now')");
+                    created = result.getLong(0);
+                }
+
+                // Insert the file name and time created into the File table
+                String sql = String.format("INSERT INTO File(name, created) VALUES(\"%s\", %d)", fileName, created);
                 statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
                 // Get the ID assigned to this file by the database and insert a row with it and each of its tag's IDs into the FileTags table

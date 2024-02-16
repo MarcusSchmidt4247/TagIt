@@ -12,6 +12,7 @@ import javafx.stage.DirectoryChooser;
 
 import java.io.*;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 
 public class ImporterController
@@ -239,9 +240,23 @@ public class ImporterController
     {
         try
         {
-            // Copy the file to the program Storage directory and record it in the database
+            // Copy the file to the program Storage directory
             Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
-            ReadWriteManager.saveFile(taggerModel.getPath(), target.getFileName().toString(), importerModel.getAppliedTags());
+
+            // Attempt to retrieve the time that this file was created as milliseconds since the epoch
+            long creationTime;
+            try
+            {
+                creationTime = Files.readAttributes(source, BasicFileAttributes.class).creationTime().toMillis();
+            }
+            catch (IOException | UnsupportedOperationException | SecurityException exception)
+            {
+                System.out.println(exception.toString());
+                creationTime = -1;
+            }
+
+            // Record this file, its creation time, and the tags being applied to it in the database
+            ReadWriteManager.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
             importerModel.getFiles().remove(importerModel.importIndex);
         }
         catch (FileAlreadyExistsException e)
