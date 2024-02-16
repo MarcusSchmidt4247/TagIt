@@ -182,6 +182,13 @@ public class TaggerController
         expandButton.setGraphic(new FontIcon(icon));
     }
 
+    @FXML
+    public void onDeleteFile()
+    {
+        taggerModel.deleteCurrentFile();
+        refreshContentPane(taggerModel.currentFile());
+    }
+
     //******************
     // Private methods *
     //******************

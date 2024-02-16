@@ -12,6 +12,13 @@ public class TaggerModel
 
     private final Vector<String> files = new Vector<>();
     private int currFileIndex = -1;
+
+    public TaggerModel(final String path)
+    {
+        this.path = path;
+        tagTreeRoot = new TagNode(path);
+    }
+
     public String firstFile()
     {
         if (!files.isEmpty())
@@ -22,6 +29,7 @@ public class TaggerModel
         else
             return null;
     }
+
     public String currentFile()
     {
         if (!files.isEmpty())
@@ -29,6 +37,7 @@ public class TaggerModel
         else
             return null;
     }
+
     public String nextFile()
     {
         if (!files.isEmpty())
@@ -42,6 +51,7 @@ public class TaggerModel
         else
             return null;
     }
+
     public String prevFile()
     {
         if (!files.isEmpty())
@@ -54,25 +64,23 @@ public class TaggerModel
         }
         return null;
     }
+
     public void setFiles(Vector<String> files)
     {
         currFileIndex = 0;
         this.files.removeAllElements();
         this.files.addAll(files);
     }
-    public void printFiles()
-    {
-        System.out.println("****\nCurrent files:");
-        for (String file : files)
-        {
-            System.out.println(file);
-        }
-        System.out.println("****\n");
-    }
 
-    public TaggerModel(final String path)
+    public void deleteCurrentFile()
     {
-        this.path = path;
-        tagTreeRoot = new TagNode(path);
+        if (!files.isEmpty() && currFileIndex < files.size())
+        {
+            ReadWriteManager.deleteFile(path, files.get(currFileIndex));
+            files.removeElementAt(currFileIndex);
+
+            if (currFileIndex >= files.size())
+                currFileIndex = 0;
+        }
     }
 }

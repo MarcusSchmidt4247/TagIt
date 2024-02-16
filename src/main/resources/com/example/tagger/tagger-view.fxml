@@ -103,7 +103,7 @@
                     <padding>
                         <Insets right="5.0" bottom="5.0"/>
                     </padding>
-                    <Button text="Delete File"/>
+                    <Button text="Delete File" onAction="#onDeleteFile"/>
                 </HBox>
             </VBox>
         </AnchorPane>

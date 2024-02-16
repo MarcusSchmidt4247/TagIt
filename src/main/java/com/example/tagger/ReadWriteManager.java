@@ -497,6 +497,22 @@ public class ReadWriteManager
             System.out.println("ReadWriteManager.deleteFileTag: Tag ID = -1");
     }
 
+    public static void deleteFile(String path, String file)
+    {
+        String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
+        try (Connection connection = DriverManager.getConnection(url))
+        {
+            Statement statement = connection.createStatement();
+            statement.execute("PRAGMA foreign_keys = ON");
+            statement.execute(String.format("DELETE FROM File WHERE name=\"%s\"", file));
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),
      * or return null if the path is not a valid directory or does not permit its files to be read */
     public static File[] getFilesInDir(final String PATH)
