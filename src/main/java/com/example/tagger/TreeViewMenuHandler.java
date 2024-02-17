@@ -13,7 +13,7 @@ import java.io.IOException;
 
 public class TreeViewMenuHandler implements EventHandler<ActionEvent>
 {
-    public enum Type { CREATE, EDIT };
+    public enum Type { CREATE_ROOT, CREATE_CHILD, EDIT };
 
     private final TagNode TREE_ROOT;
     private final CheckTreeView<String> TREE_VIEW;
@@ -29,19 +29,26 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
     @Override
     public void handle(ActionEvent actionEvent)
     {
-        if (TYPE == Type.CREATE)
-            handleCreate();
+        if (TYPE == Type.CREATE_ROOT)
+            handleCreate(false);
+        else if (TYPE == Type.CREATE_CHILD)
+            handleCreate(true);
         else if (TYPE == Type.EDIT)
             handleEdit();
+        else
+            System.out.println("TreeViewMenuHandler.handle: Unrecognized menu item type");
     }
 
-    private void handleCreate()
+    private void handleCreate(boolean createChild)
     {
         // Find the TagNode that is equivalent to the selected TreeItem
         TagNode parent = TREE_ROOT;
-        TreeItem<String> selectedItem = TREE_VIEW.getSelectionModel().getSelectedItem();
-        if (selectedItem != null)
-            parent = TREE_ROOT.findNode(selectedItem);
+        if (createChild)
+        {
+            TreeItem<String> selectedItem = TREE_VIEW.getSelectionModel().getSelectedItem();
+            if (selectedItem != null)
+                parent = TREE_ROOT.findNode(selectedItem);
+        }
 
         // Ask the user to enter a valid name for the new tag
         boolean valid;

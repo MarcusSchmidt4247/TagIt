@@ -49,6 +49,8 @@ public class TaggerController
     private Button expandButton;
     @FXML
     private Button deselectButton;
+    @FXML
+    private Button deleteFileButton;
 
     private TaggerModel taggerModel;
     private double editPanePos = 0.7;
@@ -185,8 +187,18 @@ public class TaggerController
     @FXML
     public void onDeleteFile()
     {
-        taggerModel.deleteCurrentFile();
-        refreshContentPane(taggerModel.currentFile());
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Delete File");
+        confirmation.setHeaderText(String.format("Are you sure you want to delete the file \"%s\"?", taggerModel.currentFile()));
+        confirmation.setContentText("This action cannot be reversed.");
+        confirmation.setGraphic(null);
+        confirmation.getDialogPane().setMaxWidth(400);
+        confirmation.showAndWait();
+        if (confirmation.getResult() == ButtonType.OK)
+        {
+            taggerModel.deleteCurrentFile();
+            refreshContentPane(taggerModel.currentFile());
+        }
     }
 
     //******************
@@ -274,6 +286,9 @@ public class TaggerController
         {
             fileNameLabel.setText(taggerModel.currentFile());
 
+            if (deleteFileButton.isDisabled())
+                deleteFileButton.setDisable(false);
+
             // Disable the edit tag tree's checked item listener, set the current file's tags to be checked in the tree, and reapply the listener
             editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
             editTreeView.getCheckModel().clearChecks();
@@ -284,6 +299,7 @@ public class TaggerController
         else
         {
             fileNameLabel.setText("");
+            deleteFileButton.setDisable(true);
             editTreeView.getCheckModel().clearChecks();
         }
     }

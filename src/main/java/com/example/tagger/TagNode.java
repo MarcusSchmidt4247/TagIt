@@ -208,13 +208,14 @@ public class TagNode
 
     public void delete()
     {
-        ReadWriteManager.deleteTag(this);
-        if (parent != null)
-            parent.getChildren().remove(this);
         if (!children.isEmpty())
         {
             for (int i = children.size() - 1; i >= 0; i--)
                 children.get(i).delete();
         }
+
+        ReadWriteManager.deleteTag(this);
+        if (parent != null)
+            parent.getChildren().remove(this);
     }
 }

@@ -107,8 +107,18 @@ public class TagEditorController
 
     public void onDeleteButton()
     {
-        node.delete();
-        ((Stage) nameField.getScene().getWindow()).close();
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Delete Tag");
+        confirmation.setHeaderText("Are you sure you want to delete this tag?");
+        confirmation.setContentText("All files tagged with this item will lose the tag, and all child tags will be deleted too. This action cannot be reversed.");
+        confirmation.setGraphic(null);
+        confirmation.getDialogPane().setMaxWidth(400);
+        confirmation.showAndWait();
+        if (confirmation.getResult() == ButtonType.OK)
+        {
+            node.delete();
+            ((Stage) nameField.getScene().getWindow()).close();
+        }
     }
 
     private void errorDialog(String message)
