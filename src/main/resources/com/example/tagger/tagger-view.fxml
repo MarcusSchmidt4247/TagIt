@@ -13,8 +13,8 @@
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.tagger.TaggerController"  stylesheets="@stylesheets.css">
     <MenuBar useSystemMenuBar="true">
         <Menu text="Files">
-            <MenuItem text="Enable Editing" onAction="#onToggleEdit"/>
-            <MenuItem text="Import" onAction="#onSelectImport"/>
+            <MenuItem text="Toggle File Editing" onAction="#onToggleEdit"/>
+            <MenuItem text="Import New Files" onAction="#onSelectImport"/>
         </Menu>
     </MenuBar>
     <SplitPane fx:id="mainSplitPane" dividerPositions="0.3,0.7" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
@@ -89,12 +89,19 @@
         <!-- Right pane is hidden by default and contains another tag selector to edit a file's tags -->
         <AnchorPane fx:id="editPane" minWidth="0.0" minHeight="0.0" maxHeight="Infinity" maxWidth="Infinity">
             <VBox spacing="5.0" maxHeight="Infinity" maxWidth="Infinity" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.leftAnchor="0.0">
-                <HBox spacing="5.0">
+                <HBox alignment="CENTER_LEFT">
                     <padding>
-                        <Insets left="10.0" right="10.0" top="5.0"/>
+                        <Insets left="10" right="5" top="5"/>
                     </padding>
-                    <Label text="File:"/>
-                    <Label fx:id="fileNameLabel"/>
+                    <HBox spacing="5.0" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                        <Label text="File:"/>
+                        <Label fx:id="fileNameLabel"/>
+                    </HBox>
+                    <Button fx:id="editNameButton" onAction="#onEditFileName">
+                        <graphic>
+                            <FontIcon iconLiteral="bx-edit-alt"/>
+                        </graphic>
+                    </Button>
                 </HBox>
                 <DynamicCheckTreeView fx:id="editTreeView" showRoot="false" maxHeight="Infinity" VBox.vgrow="ALWAYS">
                     <CheckBoxTreeItem value="root" independent="true"/>

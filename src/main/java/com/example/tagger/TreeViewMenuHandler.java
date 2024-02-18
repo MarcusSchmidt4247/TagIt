@@ -13,7 +13,7 @@ import java.io.IOException;
 
 public class TreeViewMenuHandler implements EventHandler<ActionEvent>
 {
-    public enum Type { CREATE_ROOT, CREATE_CHILD, EDIT };
+    public enum Type { CREATE_ROOT, CREATE_CHILD, EDIT }
 
     private final TagNode TREE_ROOT;
     private final CheckTreeView<String> TREE_VIEW;

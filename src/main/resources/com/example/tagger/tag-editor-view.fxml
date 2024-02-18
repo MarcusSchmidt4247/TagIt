@@ -25,7 +25,7 @@
         <Label fx:id="parentageLabel" AnchorPane.leftAnchor="52.0" AnchorPane.rightAnchor="35.0" AnchorPane.topAnchor="5.0"/>
         <Button onAction="#onExpand" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0">
             <graphic>
-                <FontIcon iconLiteral="bx-dots-vertical-rounded"/>
+                <FontIcon iconLiteral="bx-expand-alt"/>
             </graphic>
         </Button>
     </AnchorPane>

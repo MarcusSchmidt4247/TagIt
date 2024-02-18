@@ -272,33 +272,10 @@ public class ImporterController
             alert.showAndWait();
             if (alert.getResult() != ButtonType.CANCEL)
             {
-                // If the user chose to rename the file, open a text input dialog
-                boolean valid;
-                String name = null;
-                do
-                {
-                    TextInputDialog dialog;
-                    if (name == null)
-                    {
-                        dialog = new TextInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
-                        dialog.setHeaderText("Enter a new file name:");
-                        dialog.getDialogPane().setMinWidth(300);
-                    }
-                    else
-                    {
-                        dialog = new TextInputDialog(name);
-                        dialog.setHeaderText("Name cannot contain slashes or quotes and must\nhave a valid extension.\n\nEnter a new file name:");
-                    }
-                    dialog.setTitle("");
-                    dialog.setGraphic(null);
-                    dialog.showAndWait();
-                    name = dialog.getResult(); // will return null if user cancels dialog
-                    valid = (name != null && ReadWriteManager.validInput(name) && ExtensionFilter.validExtension(name));
-                } while (name != null && !valid);
-
-                // If the user entered a valid string, import it with the new name
-                if (valid)
-                    importFile(source, Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), name)));
+                // If the user chose to rename the file, open a text input dialog and import the file with the provided new name
+                FileNameDialog dialog = new FileNameDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
+                if (dialog.showAndLoop())
+                    importFile(source, Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), dialog.getName())));
             }
         }
         catch (IOException e)

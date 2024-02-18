@@ -497,6 +497,38 @@ public class ReadWriteManager
             System.out.println("ReadWriteManager.deleteFileTag: Tag ID = -1");
     }
 
+    public static boolean renameFile(String path, String oldName, String newName)
+    {
+        // Attempt to rename the actual file's name
+        String originalFile = String.format("%s/Storage/%s", path, oldName);
+        File file = new File(originalFile);
+        if (file.renameTo(new File(String.format("%s/Storage/%s", path, newName))))
+        {
+            // If successful, attempt to update the file's name in the database
+            String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                String sql = String.format("UPDATE File SET name=\"%s\" WHERE name=\"%s\"", newName, oldName);
+                Statement statement = connection.createStatement();
+                statement.execute(sql);
+                statement.close();
+                return true;
+            }
+            catch (SQLException e)
+            {
+                // If the name cannot be updated in the database, attempt to revert the actual file's name to keep everything consistent
+                System.out.println("ReadWriteManager.renameFile: Unable to rename file in database");
+                file.renameTo(new File(originalFile));
+                return false;
+            }
+        }
+        else
+        {
+            System.out.println("ReadWriteManager.renameFile: Unable to rename file");
+            return false;
+        }
+    }
+
     public static void deleteFile(String path, String file)
     {
         String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");

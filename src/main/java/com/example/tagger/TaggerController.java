@@ -50,6 +50,8 @@ public class TaggerController
     @FXML
     private Button deselectButton;
     @FXML
+    private Button editNameButton;
+    @FXML
     private Button deleteFileButton;
 
     private TaggerModel taggerModel;
@@ -185,6 +187,17 @@ public class TaggerController
     }
 
     @FXML
+    public void onEditFileName()
+    {
+        FileNameDialog dialog = new FileNameDialog(taggerModel.currentFile());
+        if (dialog.showAndLoop())
+        {
+            taggerModel.renameCurrentFile(dialog.getName());
+            fileNameLabel.setText(taggerModel.currentFile());
+        }
+    }
+
+    @FXML
     public void onDeleteFile()
     {
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
@@ -253,7 +266,6 @@ public class TaggerController
                     errorLabel.setVisible(true);
                     imageView.setVisible(false);
                     mediaView.setVisibility(false);
-                    throw new RuntimeException(e);
                 }
             }
             else if (fileName.toLowerCase().matches(".+[.](mp[34])$"))
@@ -286,8 +298,13 @@ public class TaggerController
         {
             fileNameLabel.setText(taggerModel.currentFile());
 
-            if (deleteFileButton.isDisabled())
+            // If the controls are disabled, enable them
+            if (editTreeView.isDisable())
+            {
+                editTreeView.setDisable(false);
+                editNameButton.setDisable(false);
                 deleteFileButton.setDisable(false);
+            }
 
             // Disable the edit tag tree's checked item listener, set the current file's tags to be checked in the tree, and reapply the listener
             editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
@@ -298,9 +315,12 @@ public class TaggerController
         }
         else
         {
+            // Remove any previous file data and disable the controls
             fileNameLabel.setText("");
-            deleteFileButton.setDisable(true);
             editTreeView.getCheckModel().clearChecks();
+            editTreeView.setDisable(true);
+            editNameButton.setDisable(true);
+            deleteFileButton.setDisable(true);
         }
     }
 

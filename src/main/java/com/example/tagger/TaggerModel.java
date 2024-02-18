@@ -72,6 +72,16 @@ public class TaggerModel
         this.files.addAll(files);
     }
 
+    public void renameCurrentFile(String name)
+    {
+        if (!files.isEmpty() && currFileIndex < files.size())
+        {
+            boolean successful = ReadWriteManager.renameFile(path, files.get(currFileIndex), name);
+            if (successful)
+                files.set(currFileIndex, name);
+        }
+    }
+
     public void deleteCurrentFile()
     {
         if (!files.isEmpty() && currFileIndex < files.size())
