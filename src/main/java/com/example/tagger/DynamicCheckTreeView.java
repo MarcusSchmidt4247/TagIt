@@ -25,12 +25,15 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         init(root, Mode.SINGLE_CHECK);
 
         // If the equivalent TreeItem to 'preselectedNode' can be found, remove it from the tree and set its parent to be checked
-        TreeItem<String> currentItem = findItem(preselectedNode, true);
-        if (currentItem != null)
+        if (preselectedNode != null)
         {
-            CheckBoxTreeItem<String> parentItem = ((CheckBoxTreeItem<String>) currentItem.getParent());
-            parentItem.setSelected(true);
-            parentItem.getChildren().remove(currentItem);
+            TreeItem<String> currentItem = findItem(preselectedNode, true);
+            if (currentItem != null)
+            {
+                CheckBoxTreeItem<String> parentItem = ((CheckBoxTreeItem<String>) currentItem.getParent());
+                parentItem.setSelected(true);
+                parentItem.getChildren().remove(currentItem);
+            }
         }
     }
 

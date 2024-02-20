@@ -119,7 +119,7 @@ public class TaggerController
             });
 
             // Initialize and then hide the edit pane
-            editTreeView.init(taggerModel.getTreeRoot());
+            editTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
             onToggleEdit();
         }
         else

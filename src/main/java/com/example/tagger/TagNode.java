@@ -1,5 +1,6 @@
 package com.example.tagger;
 
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -9,13 +10,16 @@ import java.util.Vector;
 
 public class TagNode
 {
-    private TagNode parent;
-    public TagNode getParent() { return parent; }
+    private final SimpleObjectProperty<TagNode> parent = new SimpleObjectProperty<>();
+    public SimpleObjectProperty<TagNode> parentProperty() { return parent; }
+    public TagNode getParent() { return parent.get(); }
     public void changeParent(TagNode newParent)
     {
-        parent.getChildren().remove(this);
-        parent = newParent;
-        parent.getChildren().add(this);
+        parent.get().getChildren().remove(this);
+        parent.set(newParent);
+        parent.get().getChildren().add(this);
+
+        ReadWriteManager.updateTagParentage(this);
     }
 
     private final StringProperty tag;
@@ -31,7 +35,7 @@ public class TagNode
         if (!fetchedChildren && !noFetch)
         {
             fetchedChildren = true;
-            if (parent == null)
+            if (parent.get() == null)
                 ReadWriteManager.getRootTags(this, children);
             else
                 ReadWriteManager.getChildTags(this, children);
@@ -61,10 +65,10 @@ public class TagNode
 
     public String getTagPath()
     {
-        if (parent == null)
+        if (parent.get() == null)
             return null;
         else
-            return (parent.getTagPath() != null) ? String.format("%s->%s", parent.getTagPath(), tag.getValue()) : tag.getValue();
+            return (parent.get().getTagPath() != null) ? String.format("%s->%s", parent.get().getTagPath(), tag.getValue()) : tag.getValue();
     }
 
     private int id = -1;
@@ -104,7 +108,7 @@ public class TagNode
     public TagNode(final String ROOT_PATH)
     {
         this.ROOT_PATH = ROOT_PATH;
-        parent = null;
+        parent.set(null);
         tag = new SimpleStringProperty("root");
     }
 
@@ -113,7 +117,7 @@ public class TagNode
     // General constructor (should not be used for the root node unless you want it to be displayed in 'tagPath')
     public TagNode(final TagNode parent, String tag, int id)
     {
-        this.parent = parent;
+        this.parent.set(parent);
         ROOT_PATH = parent.getRootPath();
         this.tag = new SimpleStringProperty(tag);
         this.id = id;
@@ -123,7 +127,9 @@ public class TagNode
 
     public boolean equals(TagNode other)
     {
-        if (id != -1 || other.getId() != -1)
+        if (other == null)
+            return false;
+        else if (id != -1 || other.getId() != -1)
             return id == other.getId();
         else
             return tag.getValue().equals(other.getTag());
@@ -215,7 +221,7 @@ public class TagNode
         }
 
         ReadWriteManager.deleteTag(this);
-        if (parent != null)
-            parent.getChildren().remove(this);
+        if (parent.get() != null)
+            parent.get().getChildren().remove(this);
     }
 }

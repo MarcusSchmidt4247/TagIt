@@ -497,6 +497,37 @@ public class ReadWriteManager
             System.out.println("ReadWriteManager.deleteFileTag: Tag ID = -1");
     }
 
+    // Return the list of names of every file in the managed directory that is only tagged with the provided tag
+    public static Vector<String> getUniqueFiles(TagNode tag)
+    {
+        Vector<String> files = new Vector<>();
+
+        if (tag.getId() != -1)
+        {
+            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
+            try (Connection connection = DriverManager.getConnection(url))
+            {
+                String sql = "SELECT name FROM File JOIN FileTags ON id=FileTags.file_id " +
+                        String.format("JOIN (SELECT file_id FROM FileTags WHERE tag_id=%d) as ids ON id=ids.file_id ", tag.getId()) +
+                        "GROUP BY id HAVING count(tag_id)=1";
+
+                Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery(sql);
+                while (results.next())
+                    files.add(results.getString(1));
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("ReadWriteManager.getUniqueFiles: Tag ID = -1");
+
+        return files;
+    }
+
     public static boolean renameFile(String path, String oldName, String newName)
     {
         // Attempt to rename the actual file's name
@@ -529,14 +560,20 @@ public class ReadWriteManager
         }
     }
 
-    public static void deleteFile(String path, String file)
+    public static void deleteFile(String path, String fileName)
     {
+        // Delete the actual file from the managed directory
+        File file = new File(String.format("%s/Storage/%s", path, fileName));
+        if (!file.delete())
+            System.out.println("ReadWriteManager.deleteFile: Unable to delete file");
+
+        // Delete the file's information from the database
         String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
         try (Connection connection = DriverManager.getConnection(url))
         {
             Statement statement = connection.createStatement();
             statement.execute("PRAGMA foreign_keys = ON");
-            statement.execute(String.format("DELETE FROM File WHERE name=\"%s\"", file));
+            statement.execute(String.format("DELETE FROM File WHERE name=\"%s\"", fileName));
             statement.close();
         }
         catch (SQLException e)

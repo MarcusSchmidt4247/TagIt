@@ -6,8 +6,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
-<?import javafx.scene.control.CheckBoxTreeItem?>
-<?import com.example.tagger.DynamicCheckTreeView?>
 
 <VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.example.tagger.TagEditorController"
       alignment="CENTER_LEFT" spacing="10.0" minWidth="270" maxHeight="Infinity">
@@ -23,16 +21,12 @@
     <AnchorPane>
         <Label text="Parent:" style="-fx-font-size: 15" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0"/>
         <Label fx:id="parentageLabel" AnchorPane.leftAnchor="52.0" AnchorPane.rightAnchor="35.0" AnchorPane.topAnchor="5.0"/>
-        <Button onAction="#onExpand" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0">
+        <Button onAction="#onSelect" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0">
             <graphic>
-                <FontIcon iconLiteral="bx-expand-alt"/>
+                <FontIcon iconLiteral="bx-list-ul"/>
             </graphic>
         </Button>
     </AnchorPane>
-    <!-- Expandable tree view to select new parent -->
-    <DynamicCheckTreeView fx:id="tagTreeView" prefHeight="200" visible="false" managed="false">
-        <CheckBoxTreeItem value="root" independent="true" expanded="true"/>
-    </DynamicCheckTreeView>
     <!-- Buttons to finalize tag state and exit the dialog -->
     <AnchorPane>
         <Button onAction="#onDeleteButton" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0">
