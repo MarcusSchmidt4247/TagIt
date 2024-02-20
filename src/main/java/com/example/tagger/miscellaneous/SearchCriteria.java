@@ -7,8 +7,8 @@ public class SearchCriteria
     public enum SortMethod
     {
         NAME ("Alphabetically"),
-        OLD_NEW ("Old to new"),
-        NEW_OLD ("New to old"),
+        AGE("Oldest to newest"),
+        IMPORT ("Import order"),
         RANDOM ("Random");
 
         public final String description;

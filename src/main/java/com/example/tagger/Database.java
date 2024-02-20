@@ -349,11 +349,11 @@ public class Database
                     case NAME:
                         sql = sql.concat(" ORDER BY name ASC");
                         break;
-                    case OLD_NEW:
+                    case AGE:
                         sql = sql.concat(" ORDER BY created ASC");
                         break;
-                    case NEW_OLD:
-                        sql = sql.concat(" ORDER BY created DESC");
+                    case IMPORT:
+                        sql = sql.concat(" ORDER BY id ASC");
                         break;
                     case RANDOM:
                         sql = sql.concat(" ORDER BY RANDOM()");
