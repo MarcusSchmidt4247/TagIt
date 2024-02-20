@@ -1,5 +1,6 @@
-package com.example.tagger;
+package com.example.tagger.gui;
 
+import com.example.tagger.miscellaneous.TagNode;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;

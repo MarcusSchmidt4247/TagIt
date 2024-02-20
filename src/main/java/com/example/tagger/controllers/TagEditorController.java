@@ -1,5 +1,8 @@
-package com.example.tagger;
+package com.example.tagger.controllers;
 
+import com.example.tagger.Database;
+import com.example.tagger.IOManager;
+import com.example.tagger.miscellaneous.TagNode;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -47,7 +50,7 @@ public class TagEditorController
             errorDialog("Name cannot be blank");
             return;
         }
-        else if (!ReadWriteManager.validInput(nameField.getText()))
+        else if (!IOManager.validInput(nameField.getText()))
         {
             errorDialog("Name cannot contain slashes or quotes");
             return;
@@ -57,7 +60,7 @@ public class TagEditorController
         if (!tag.getTag().equals(nameField.getText()))
         {
             tag.setTag(nameField.getText());
-            ReadWriteManager.renameTag(tag);
+            Database.renameTag(tag);
         }
 
         // If a new parent has been selected, update the tag's parent
@@ -74,20 +77,14 @@ public class TagEditorController
 
     public void onDeleteButton()
     {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Delete Tag");
-        confirmation.setHeaderText("Are you sure you want to delete this tag?");
-        confirmation.setContentText("All files tagged with this item will lose the tag, and all child tags will be deleted too. This action cannot be reversed.");
-        confirmation.setGraphic(null);
-        confirmation.getDialogPane().setMaxWidth(400);
-        confirmation.showAndWait();
-        if (confirmation.getResult() == ButtonType.OK)
+        String description = "All files tagged with this item will lose the tag, and all child tags will be deleted too. This action cannot be reversed.";
+        if (IOManager.confirmAction("Delete Tag", "Are you sure you want to delete this tag?", description))
         {
             boolean delete = true;
             boolean switchTag = false;
 
             // Get the list of files that are only tagged with the tag that is about to be deleted
-            Vector<String> orphanedFiles = ReadWriteManager.getUniqueFiles(tag);
+            Vector<String> orphanedFiles = Database.getUniqueFiles(tag);
             if (!orphanedFiles.isEmpty())
             {
                 Alert warning = new Alert(Alert.AlertType.WARNING);
@@ -111,7 +108,7 @@ public class TagEditorController
 
             if (delete)
             {
-                orphanedFiles.forEach(orphan -> ReadWriteManager.deleteFile(tag.getRootPath(), orphan));
+                orphanedFiles.forEach(orphan -> IOManager.deleteFile(tag.getRootPath(), orphan));
                 tag.delete();
                 ((Stage) nameField.getScene().getWindow()).close();
             }
@@ -124,8 +121,8 @@ public class TagEditorController
                     // Change the tag for these files to the new selection
                     for (String orphan : orphanedFiles)
                     {
-                        ReadWriteManager.deleteFileTag(orphan, tag);
-                        ReadWriteManager.addFileTag(orphan, selection);
+                        Database.deleteFileTag(orphan, tag);
+                        Database.addFileTag(orphan, selection);
                     }
 
                     // And then delete the old tag
@@ -139,8 +136,7 @@ public class TagEditorController
     private void errorDialog(String message)
     {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setGraphic(null);
-        alert.setContentText(message);
+        alert.setHeaderText(message);
         alert.showAndWait();
     }
 

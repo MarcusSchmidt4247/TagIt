@@ -1,9 +1,11 @@
-package com.example.tagger;
+package com.example.tagger.controllers;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TreeItem;
 import javafx.stage.Stage;
+import com.example.tagger.gui.DynamicCheckTreeView;
+import com.example.tagger.miscellaneous.TagNode;
 
 public class TagSelectorController
 {

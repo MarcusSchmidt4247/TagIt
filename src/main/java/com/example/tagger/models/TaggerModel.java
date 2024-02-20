@@ -1,4 +1,7 @@
-package com.example.tagger;
+package com.example.tagger.models;
+
+import com.example.tagger.IOManager;
+import com.example.tagger.miscellaneous.TagNode;
 
 import java.util.Vector;
 
@@ -76,7 +79,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            boolean successful = ReadWriteManager.renameFile(path, files.get(currFileIndex), name);
+            boolean successful = IOManager.renameFile(path, files.get(currFileIndex), name);
             if (successful)
                 files.set(currFileIndex, name);
         }
@@ -86,7 +89,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            ReadWriteManager.deleteFile(path, files.get(currFileIndex));
+            IOManager.deleteFile(path, files.get(currFileIndex));
             files.removeElementAt(currFileIndex);
 
             if (currFileIndex >= files.size())

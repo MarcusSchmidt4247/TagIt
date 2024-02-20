@@ -1,15 +1,13 @@
-package com.example.tagger;
+package com.example.tagger.gui;
 
+import com.example.tagger.Database;
+import com.example.tagger.IOManager;
+import com.example.tagger.miscellaneous.TagNode;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import org.controlsfx.control.CheckTreeView;
-import java.io.IOException;
 
 public class TreeViewMenuHandler implements EventHandler<ActionEvent>
 {
@@ -58,7 +56,7 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
             String instruction = (name == null) ? "Enter the name of the new tag:" : "Cannot contain slashes or quotes,\nand must be unique on this layer\n\nEnter the name of the new tag:";
             name = inputDialog(instruction); // will return null if user cancels
             if (name != null)
-                valid = ReadWriteManager.validInput(name) && !parent.hasChild(name);
+                valid = IOManager.validInput(name) && !parent.hasChild(name);
             else
                 valid = false;
         } while (name != null && !valid);
@@ -68,7 +66,7 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
             // Create a TagNode child for the new tag and add it to the database
             TagNode child = new TagNode(parent, name);
             parent.getChildren().add(child);
-            ReadWriteManager.addTag(child);
+            Database.addTag(child);
         }
     }
 
@@ -80,26 +78,7 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
         {
             TagNode node = TREE_ROOT.findNode(selectedItem);
             if (node != null)
-            {
-                try
-                {
-                    // Create a window to edit this TagNode
-                    FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tag-editor-view.fxml"));
-                    Scene scene = new Scene(fxmlLoader.load());
-                    ((TagEditorController) fxmlLoader.getController()).setTagNodes(TREE_ROOT, node);
-                    Stage stage = new Stage();
-                    stage.initOwner(TREE_VIEW.getScene().getWindow());
-                    stage.initModality(Modality.WINDOW_MODAL);
-                    stage.setResizable(false);
-                    stage.setTitle("Edit Tag");
-                    stage.setScene(scene);
-                    stage.show();
-                }
-                catch (IOException e)
-                {
-                    throw new RuntimeException(e);
-                }
-            }
+                IOManager.editTag(TREE_VIEW.getScene().getWindow(), TREE_ROOT, node);
             else
                 System.out.println("TreeViewMenuHandler.handleEdit: Unable to locate node for selected tree item");
         }

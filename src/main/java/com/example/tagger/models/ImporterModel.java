@@ -1,5 +1,6 @@
-package com.example.tagger;
+package com.example.tagger.models;
 
+import com.example.tagger.miscellaneous.TagNode;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;

@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import com.example.tagger.miscellaneous.SearchCriteria;
+import com.example.tagger.miscellaneous.TagNode;
 import javafx.collections.ObservableList;
 
 import java.io.File;
@@ -7,10 +9,10 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.Vector;
 
-public class ReadWriteManager
+public class Database
 {
     // Ensure the database file exists
-    public static void verifyDatabase(final String PATH)
+    public static void verify(final String PATH)
     {
         // Create a file object representing what should be a valid database in the device's file system
         File database = new File(String.format("%s/database.db", PATH));
@@ -22,8 +24,7 @@ public class ReadWriteManager
                 if (database.createNewFile())
                 {
                     // If successful, try to connect to it as a SQLite database
-                    String url = String.format("jdbc:sqlite:%s", database.getAbsolutePath());
-                    try (Connection connection = DriverManager.getConnection(url))
+                    try (Connection connection = connect(database.getAbsolutePath()))
                     {
                         if (connection.isValid(5))
                         {
@@ -60,8 +61,7 @@ public class ReadWriteManager
     // Save a newly created TagNode to the database
     public static void addTag(TagNode tag)
     {
-        String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(tag.getRootPath()))
         {
             String sql = String.format("INSERT INTO Tag(name) VALUES(\"%s\")", tag.getTag());
             Statement statement = connection.createStatement();
@@ -93,8 +93,7 @@ public class ReadWriteManager
     public static void getRootTags(TagNode root, ObservableList<TagNode> tags)
     {
         tags.clear();
-        String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(root.getRootPath()))
         {
             String sql = "SELECT name, id FROM Tag WHERE id NOT IN (SELECT child_id FROM TagParentage) ORDER BY name ASC";
             Statement statement = connection.createStatement();
@@ -113,8 +112,7 @@ public class ReadWriteManager
     public static void getChildTags(TagNode parent, ObservableList<TagNode> children)
     {
         children.clear();
-        String url = String.format("jdbc:sqlite:%s/%s", parent.getRootPath(), "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(parent.getRootPath()))
         {
             String sql = "SELECT name, id FROM Tag JOIN TagParentage ON id=child_id WHERE parent_id=? ORDER BY name ASC";
             PreparedStatement statement = connection.prepareStatement(sql);
@@ -136,8 +134,7 @@ public class ReadWriteManager
     // Return whether the provided tag has any children tags
     public static boolean isLeafTag(TagNode tag)
     {
-        String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(tag.getRootPath()))
         {
             String sql = String.format("SELECT count(parent_id) FROM TagParentage WHERE parent_id=%d", tag.getId());
             Statement statement = connection.createStatement();
@@ -157,8 +154,7 @@ public class ReadWriteManager
         // A tag with the ID -1 has not been written to the database yet, so it cannot be updated
         if (tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 String sql = String.format("UPDATE Tag SET name=\"%s\" WHERE id=%d", tag.getTag(), tag.getId());
                 Statement statement = connection.createStatement();
@@ -171,7 +167,7 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.renameTag: Tag ID = -1");
+            System.out.println("Database.renameTag: Tag ID = -1");
     }
 
     public static void updateTagParentage(TagNode tag)
@@ -179,8 +175,7 @@ public class ReadWriteManager
         // If the TagNode does not have a parent then it is the tree's root and NOT a tag in and of itself, so there's nothing to update
         if (tag.getParent() != null && tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -209,15 +204,14 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.updateTagParent: Tag's parent is null or ID = -1");
+            System.out.println("Database.updateTagParent: Tag's parent is null or ID = -1");
     }
 
     public static void deleteTag(TagNode tag)
     {
         if (tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -230,7 +224,7 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.deleteTag: Tag ID = -1");
+            System.out.println("Database.deleteTag: Tag ID = -1");
     }
 
     // Return every tag associated with the provided file
@@ -238,8 +232,7 @@ public class ReadWriteManager
     {
         Vector<TagNode> tags = new Vector<>();
 
-        String url = String.format("jdbc:sqlite:%s/%s", root.getRootPath(), "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(root.getRootPath()))
         {
             // Get this file's ID
             Statement statement = connection.createStatement();
@@ -279,11 +272,11 @@ public class ReadWriteManager
                     if (tag != null)
                         tags.add(tag);
                     else
-                        System.out.println("ReadWriteManager.getFileTags: Unable to follow lineage to TagNode");
+                        System.out.println("Database.getFileTags: Unable to follow lineage to TagNode");
                 }
             }
             else
-                System.out.printf("ReadWriteManager.getFileTags: Unable to retrieve file ID for \"%s\"\n", fileName);
+                System.out.printf("Database.getFileTags: Unable to retrieve file ID for \"%s\"\n", fileName);
             statement.close();
         }
         catch (SQLException e)
@@ -300,8 +293,7 @@ public class ReadWriteManager
         Vector<String> files = new Vector<>();
         if (!searchCriteria.getIncludeAny().isEmpty() || !searchCriteria.getIncludeAll().isEmpty())
         {
-            String url = String.format("jdbc:sqlite:%s/%s", searchCriteria.getPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(searchCriteria.getPath()))
             {
                 String table = "File";
                 String sql;
@@ -367,7 +359,7 @@ public class ReadWriteManager
                         sql = sql.concat(" ORDER BY RANDOM()");
                         break;
                     default:
-                        System.out.println("ReadWriteManager.getTaggedFiles: Unrecognized sort method");
+                        System.out.println("Database.getTaggedFiles: Unrecognized sort method");
                 }
 
                 ResultSet results = statement.executeQuery(sql);
@@ -384,12 +376,11 @@ public class ReadWriteManager
     }
 
     // Save a newly imported file to the database
-    public static void saveFile(final String PATH, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
+    public static void saveFile(final String path, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
     {
         if (!tags.isEmpty())
         {
-            String url = String.format("jdbc:sqlite:%s/%s", PATH, "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(path))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -420,7 +411,7 @@ public class ReadWriteManager
                     }
                 }
                 else
-                    System.out.println("ReadWriteManager.saveFile: Unable to retrieve file ID, tags not inserted");
+                    System.out.println("Database.saveFile: Unable to retrieve file ID, tags not inserted");
 
                 statement.close();
             }
@@ -429,6 +420,8 @@ public class ReadWriteManager
                 throw new RuntimeException(e);
             }
         }
+        else
+            System.out.println("Database.saveFile: Cannot save file without any tags");
     }
 
     // Associate the provided file and tag by inserting a row into the FileTags table
@@ -436,8 +429,7 @@ public class ReadWriteManager
     {
         if (tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -451,7 +443,7 @@ public class ReadWriteManager
                     statement.execute(sql);
                 }
                 else
-                    System.out.printf("ReadWriteManager.addFileTag: Unable to retrieve file ID for \"%s\"\n", file);
+                    System.out.printf("Database.addFileTag: Unable to retrieve file ID for \"%s\"\n", file);
 
                 statement.close();
             }
@@ -461,7 +453,7 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.addFileTag: Tag ID = -1");
+            System.out.println("Database.addFileTag: Tag ID = -1");
     }
 
     // Dissociate the provided file and tag by deleting a row from the FileTags table
@@ -469,8 +461,7 @@ public class ReadWriteManager
     {
         if (tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -484,7 +475,7 @@ public class ReadWriteManager
                     statement.execute(sql);
                 }
                 else
-                    System.out.printf("ReadWriteManager.deleteFileTag: Unable to retrieve file ID for \"%s\"\n", file);
+                    System.out.printf("Database.deleteFileTag: Unable to retrieve file ID for \"%s\"\n", file);
 
                 statement.close();
             }
@@ -494,7 +485,7 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.deleteFileTag: Tag ID = -1");
+            System.out.println("Database.deleteFileTag: Tag ID = -1");
     }
 
     // Return the list of names of every file in the managed directory that is only tagged with the provided tag
@@ -504,8 +495,7 @@ public class ReadWriteManager
 
         if (tag.getId() != -1)
         {
-            String url = String.format("jdbc:sqlite:%s/%s", tag.getRootPath(), "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
+            try (Connection connection = connect(tag.getRootPath()))
             {
                 String sql = "SELECT name FROM File JOIN FileTags ON id=FileTags.file_id " +
                         String.format("JOIN (SELECT file_id FROM FileTags WHERE tag_id=%d) as ids ON id=ids.file_id ", tag.getId()) +
@@ -523,53 +513,32 @@ public class ReadWriteManager
             }
         }
         else
-            System.out.println("ReadWriteManager.getUniqueFiles: Tag ID = -1");
+            System.out.println("Database.getUniqueFiles: Tag ID = -1");
 
         return files;
     }
 
-    public static boolean renameFile(String path, String oldName, String newName)
+    public static boolean renameFileInDatabase(String path, String oldName, String newName)
     {
-        // Attempt to rename the actual file's name
-        String originalFile = String.format("%s/Storage/%s", path, oldName);
-        File file = new File(originalFile);
-        if (file.renameTo(new File(String.format("%s/Storage/%s", path, newName))))
+        try (Connection connection = connect(path))
         {
-            // If successful, attempt to update the file's name in the database
-            String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
-            try (Connection connection = DriverManager.getConnection(url))
-            {
-                String sql = String.format("UPDATE File SET name=\"%s\" WHERE name=\"%s\"", newName, oldName);
-                Statement statement = connection.createStatement();
-                statement.execute(sql);
-                statement.close();
-                return true;
-            }
-            catch (SQLException e)
-            {
-                // If the name cannot be updated in the database, attempt to revert the actual file's name to keep everything consistent
-                System.out.println("ReadWriteManager.renameFile: Unable to rename file in database");
-                file.renameTo(new File(originalFile));
-                return false;
-            }
+            String sql = String.format("UPDATE File SET name=\"%s\" WHERE name=\"%s\"", newName, oldName);
+            Statement statement = connection.createStatement();
+            statement.execute(sql);
+            statement.close();
+            return true;
         }
-        else
+        catch (SQLException e)
         {
-            System.out.println("ReadWriteManager.renameFile: Unable to rename file");
+            // If the name cannot be updated in the database, attempt to revert the actual file's name to keep everything consistent
+            System.out.println("Database.renameFile: Unable to rename file in database");
             return false;
         }
     }
 
-    public static void deleteFile(String path, String fileName)
+    public static void deleteFileFromDatabase(String path, String fileName)
     {
-        // Delete the actual file from the managed directory
-        File file = new File(String.format("%s/Storage/%s", path, fileName));
-        if (!file.delete())
-            System.out.println("ReadWriteManager.deleteFile: Unable to delete file");
-
-        // Delete the file's information from the database
-        String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
-        try (Connection connection = DriverManager.getConnection(url))
+        try (Connection connection = connect(path))
         {
             Statement statement = connection.createStatement();
             statement.execute("PRAGMA foreign_keys = ON");
@@ -582,37 +551,9 @@ public class ReadWriteManager
         }
     }
 
-    /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),
-     * or return null if the path is not a valid directory or does not permit its files to be read */
-    public static File[] getFilesInDir(final String PATH)
+    private static Connection connect(String path) throws SQLException
     {
-        File directory = new File(PATH);
-        if (directory.isDirectory())
-        {
-            try
-            {
-                return directory.listFiles(new ExtensionFilter());
-            }
-            catch (SecurityException exception)
-            {
-                System.out.printf("ReadWriteManager.getFilesInDir: Does not have permission to read files in directory \"%s\"", PATH);
-                return null;
-            }
-        }
-        else
-        {
-            System.out.printf("ReadWriteManager.getFilesInDir: Path \"%s\" does not lead to a valid directory", PATH);
-            return null;
-        }
-    }
-
-    public static boolean validInput(String input)
-    {
-        for (char c : input.toCharArray())
-        {
-            if (c == '/' || c == '\\' || c == '"' || c == '\'')
-                return false;
-        }
-        return true;
+        String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
+        return DriverManager.getConnection(url);
     }
 }

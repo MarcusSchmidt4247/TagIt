@@ -1,5 +1,6 @@
-package com.example.tagger;
+package com.example.tagger.miscellaneous;
 
+import com.example.tagger.Database;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -19,7 +20,7 @@ public class TagNode
         parent.set(newParent);
         parent.get().getChildren().add(this);
 
-        ReadWriteManager.updateTagParentage(this);
+        Database.updateTagParentage(this);
     }
 
     private final StringProperty tag;
@@ -36,9 +37,9 @@ public class TagNode
         {
             fetchedChildren = true;
             if (parent.get() == null)
-                ReadWriteManager.getRootTags(this, children);
+                Database.getRootTags(this, children);
             else
-                ReadWriteManager.getChildTags(this, children);
+                Database.getChildTags(this, children);
         }
         return children;
     }
@@ -55,7 +56,7 @@ public class TagNode
     public boolean isLeaf()
     {
         if (!fetchedChildren)
-            return ReadWriteManager.isLeafTag(this);
+            return Database.isLeafTag(this);
         else
             return children.isEmpty();
     }
@@ -220,7 +221,7 @@ public class TagNode
                 children.get(i).delete();
         }
 
-        ReadWriteManager.deleteTag(this);
+        Database.deleteTag(this);
         if (parent.get() != null)
             parent.get().getChildren().remove(this);
     }

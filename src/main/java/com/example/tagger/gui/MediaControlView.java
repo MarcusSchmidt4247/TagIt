@@ -1,4 +1,4 @@
-package com.example.tagger;
+package com.example.tagger.gui;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;

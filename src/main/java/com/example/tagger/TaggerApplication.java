@@ -1,5 +1,7 @@
 package com.example.tagger;
 
+import com.example.tagger.controllers.TaggerController;
+import com.example.tagger.models.TaggerModel;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -24,7 +26,7 @@ public class TaggerApplication extends Application
                 path = new Scanner(input).nextLine();
         }
 
-        ReadWriteManager.verifyDatabase(path);
+        Database.verify(path);
 
         // Simple MVC design pattern example: https://stackoverflow.com/questions/32342864
         TaggerModel taggerModel = new TaggerModel(path);

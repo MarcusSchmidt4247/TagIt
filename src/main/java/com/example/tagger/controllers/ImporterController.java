@@ -1,5 +1,13 @@
-package com.example.tagger;
+package com.example.tagger.controllers;
 
+import com.example.tagger.*;
+import com.example.tagger.gui.DynamicCheckTreeView;
+import com.example.tagger.gui.FileNameDialog;
+import com.example.tagger.gui.MediaControlView;
+import com.example.tagger.gui.TreeViewMenuHandler;
+import com.example.tagger.miscellaneous.TagNode;
+import com.example.tagger.models.ImporterModel;
+import com.example.tagger.models.TaggerModel;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.collections.ListChangeListener;
@@ -99,7 +107,7 @@ public class ImporterController
             importerModel.getFiles().clear();
             if (!importerModel.getPath().getValue().isEmpty())
             {
-                File[] files = ReadWriteManager.getFilesInDir(importerModel.getPath().getValue());
+                File[] files = IOManager.getFilesInDir(importerModel.getPath().getValue());
                 // Adding new files will refresh the content pane, but it also needs to be refreshed even if there aren't any
                 if (files != null && files.length > 0)
                     importerModel.getFiles().addAll(Arrays.asList(files));
@@ -259,7 +267,7 @@ public class ImporterController
             }
 
             // Record this file, its creation time, and the tags being applied to it in the database
-            ReadWriteManager.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
+            Database.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
             importerModel.getFiles().remove(importerModel.importIndex);
         }
         catch (FileAlreadyExistsException e)

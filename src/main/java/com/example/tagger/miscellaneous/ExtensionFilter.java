@@ -1,4 +1,4 @@
-package com.example.tagger;
+package com.example.tagger.miscellaneous;
 
 import java.io.File;
 import java.io.FilenameFilter;

@@ -2,12 +2,12 @@
 
 <?import javafx.scene.layout.*?>
 
-<?import com.example.tagger.DynamicCheckTreeView?>
+<?import com.example.tagger.gui.DynamicCheckTreeView?>
 <?import javafx.scene.control.CheckBoxTreeItem?>
 <?import javafx.scene.control.Button?>
 <?import javafx.geometry.Insets?>
 
-<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.example.tagger.TagSelectorController" spacing="5">
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.example.tagger.controllers.TagSelectorController" spacing="5">
     <DynamicCheckTreeView fx:id="tagTreeView" prefHeight="300" VBox.vgrow="ALWAYS">
         <CheckBoxTreeItem value="root" independent="true" expanded="true"/>
     </DynamicCheckTreeView>

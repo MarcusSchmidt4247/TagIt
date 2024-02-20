@@ -1,5 +1,12 @@
-package com.example.tagger;
+package com.example.tagger.controllers;
 
+import com.example.tagger.*;
+import com.example.tagger.gui.DynamicCheckTreeView;
+import com.example.tagger.gui.FileNameDialog;
+import com.example.tagger.gui.MediaControlView;
+import com.example.tagger.miscellaneous.SearchCriteria;
+import com.example.tagger.miscellaneous.TagNode;
+import com.example.tagger.models.TaggerModel;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -200,14 +207,8 @@ public class TaggerController
     @FXML
     public void onDeleteFile()
     {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Delete File");
-        confirmation.setHeaderText(String.format("Are you sure you want to delete the file \"%s\"?", taggerModel.currentFile()));
-        confirmation.setContentText("This action cannot be reversed.");
-        confirmation.setGraphic(null);
-        confirmation.getDialogPane().setMaxWidth(400);
-        confirmation.showAndWait();
-        if (confirmation.getResult() == ButtonType.OK)
+        String header = String.format("Are you sure you want to delete the file \"%s\"?", taggerModel.currentFile());
+        if (IOManager.confirmAction("Delete File", header, "This action cannot be reversed."))
         {
             taggerModel.deleteCurrentFile();
             refreshContentPane(taggerModel.currentFile());
@@ -226,7 +227,7 @@ public class TaggerController
         SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), anyMatch, excluding, getSortMethod());
 
         // Select files that meet the search criteria and refresh the content pane
-        taggerModel.setFiles(ReadWriteManager.getTaggedFiles(searchCriteria));
+        taggerModel.setFiles(Database.getTaggedFiles(searchCriteria));
         refreshContentPane(taggerModel.firstFile());
     }
 
@@ -309,7 +310,7 @@ public class TaggerController
             // Disable the edit tag tree's checked item listener, set the current file's tags to be checked in the tree, and reapply the listener
             editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
             editTreeView.getCheckModel().clearChecks();
-            Vector<TagNode> tags = ReadWriteManager.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
+            Vector<TagNode> tags = Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
             tags.forEach(tag -> ((CheckBoxTreeItem<String>) editTreeView.findItem(tag, true)).setSelected(true));
             editTreeView.getCheckModel().getCheckedItems().addListener(editTreeListener);
         }
@@ -335,9 +336,9 @@ public class TaggerController
                 while (change.next())
                 {
                     if (change.wasAdded())
-                        change.getAddedSubList().forEach(item -> ReadWriteManager.addFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
+                        change.getAddedSubList().forEach(item -> Database.addFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
                     if (change.wasRemoved())
-                        change.getRemoved().forEach(item -> ReadWriteManager.deleteFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
+                        change.getRemoved().forEach(item -> Database.deleteFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
                 }
             }
         }
