@@ -11,11 +11,13 @@ import java.util.Vector;
 
 public class Database
 {
+    private static final int VERSION = 1;
+
     // Ensure the database file exists
-    public static void verify(final String PATH)
+    public static boolean verify(final String path)
     {
         // Create a file object representing what should be a valid database in the device's file system
-        File database = new File(String.format("%s/database.db", PATH));
+        File database = new File(String.format("%s/database.db", path));
         if (!database.isFile())
         {
             // If this file object does not represent a valid file, try to create it
@@ -41,21 +43,31 @@ public class Database
                                     "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
                                     "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
                                     "PRIMARY KEY (parent_id, child_id))";
+                            String databaseInfoSchema = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
                             Statement statement = connection.createStatement();
                             statement.execute(fileSchema);
                             statement.execute(tagSchema);
                             statement.execute(fileTagsSchema);
                             statement.execute(tagParentageSchema);
+                            statement.execute(databaseInfoSchema);
+                            // Insert the current version number into the DatabaseInfo table
+                            String sql = String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION);
+                            statement.execute(sql);
                             statement.close();
                         }
+                        else
+                            return false;
                     }
                 }
             }
-            catch (IOException | SQLException e)
+            catch (IOException | SQLException exception)
             {
-                throw new RuntimeException(e);
+                System.out.println(exception.toString());
+                return false;
             }
         }
+
+        return true;
     }
 
     // Save a newly created TagNode to the database
