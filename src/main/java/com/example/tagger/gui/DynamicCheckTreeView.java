@@ -1,5 +1,6 @@
 package com.example.tagger.gui;
 
+import com.example.tagger.Database;
 import com.example.tagger.miscellaneous.TagNode;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -9,14 +10,22 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.cell.CheckBoxTreeCell;
 import org.controlsfx.control.CheckTreeView;
 
+import java.util.Vector;
+
 public class DynamicCheckTreeView extends CheckTreeView<String>
 {
+    public interface ActionCallback
+    {
+        void action(TagNode node, boolean checked, boolean alt);
+    }
+
     public enum Mode { DEFAULT, LEAF_CHECK, SINGLE_CHECK }
 
     private static final String TEMP_TREE_ITEM_CHILD = "temp_cb_tree_item_child";
 
     private TagNode rootNode = null;
     private Mode mode;
+    private final Vector<Integer> removedCheckedTagIDs = new Vector<>();
 
     public void init(TagNode root) { init(root, Mode.DEFAULT); }
 
@@ -70,8 +79,6 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         }
     }
 
-    public TreeItem<String> findItem(TagNode tag) { return findItem(tag, false); }
-
     public TreeItem<String> findItem(TagNode tag, boolean expandPath)
     {
         // Attempt to find the TreeItem that is equivalent to 'preselectedNode'
@@ -110,11 +117,10 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
             treeItem.getChildren().removeFirst();
 
         // Then add CheckBoxTreeItems for its actual children
-        for (TagNode child : node.getChildren())
-            treeItem.getChildren().add(newTreeItem(child));
+        node.getChildren().forEach(child -> treeItem.getChildren().add(newTreeItem(child)));
 
         // Create a listener on the TagNode's list of children so that the tree item will be updated if it changes
-        node.getChildren().addListener((ListChangeListener<TagNode>) change ->
+        node.childrenProperty().addListener((ListChangeListener<TagNode>) change ->
         {
             while (change.next())
             {
@@ -127,6 +133,14 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
                     {
                         if (childItem.getValue().equals(removedNode.getTag()))
                         {
+                            // If the tree item that is going to be removed is a checked CheckBoxTreeItem, uncheck it first
+                            if (childItem instanceof CheckBoxTreeItem<String> && ((CheckBoxTreeItem<String>) childItem).isSelected())
+                            {
+                                // Also record the tag's ID so that it can optionally be fetched later
+                                removedCheckedTagIDs.add(removedNode.getId());
+                                ((CheckBoxTreeItem<String>) childItem).setSelected(false);
+                            }
+
                             treeItem.getChildren().remove(childItem);
                             break;
                         }
@@ -159,14 +173,14 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         {
             /* If this tag is currently a leaf and doesn't need to be expandable, add a listener to its list of children
              * so that it will be configured to be expandable if children are added to it */
-            node.getChildren(true).addListener(new ListChangeListener<>()
+            node.childrenProperty().addListener(new ListChangeListener<>()
             {
                 @Override
                 public void onChanged(Change<? extends TagNode> change)
                 {
                     if (!node.getChildren().isEmpty() && treeItem.getChildren().isEmpty())
                     {
-                        node.getChildren(true).removeListener(this);
+                        node.childrenProperty().removeListener(this);
 
                         // If only leaves can be checked and this tree item is no longer a leaf, replace its CheckBoxTreeItem with TreeItem
                         if (mode == Mode.LEAF_CHECK && treeItem instanceof CheckBoxTreeItem<String> && treeItem.getParent() != null)
@@ -185,13 +199,18 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
     private void updateTreeItem(TreeItem<String> treeItem, TagNode node)
     {
         TreeItem<String> parent = treeItem.getParent();
-        int index = parent.getChildren().indexOf(treeItem);
-        parent.getChildren().remove(treeItem);
-        treeItem = newTreeItem(node);
-        parent.getChildren().add(index, treeItem);
+        if (parent != null)
+        {
+            int index = parent.getChildren().indexOf(treeItem);
+            parent.getChildren().remove(treeItem);
+            treeItem = newTreeItem(node);
+            parent.getChildren().add(index, treeItem);
 
-        if (!treeItem.isLeaf())
-            treeItem.setExpanded(true);
+            if (!treeItem.isLeaf())
+                treeItem.setExpanded(true);
+        }
+        else
+            System.out.printf("DynamicCheckTreeView.updateTreeItem: \"%s\" has no parent\n", treeItem.getValue());
     }
 
     private void configUnexpandedTreeItem(TreeItem<String> treeItem, TagNode node)
@@ -213,5 +232,66 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         });
         CheckBoxTreeItem<String> invisibleItem = new CheckBoxTreeItem<>(TEMP_TREE_ITEM_CHILD);
         treeItem.getChildren().add(invisibleItem);
+    }
+
+    // Returns true if all newly checked and unchecked tree items could be processed, and false if any of them were checked when their associated TagNode was deleted
+    public boolean processCheckedDelta(Vector<TreeItem<String>> added, Vector<TreeItem<String>> removed, TagNode root, ActionCallback callback)
+    {
+        boolean success = true;
+
+        // Moving tags sometimes results in a duplicate removed TreeItem event being thrown, so filter those out before processing
+        for (TreeItem<String> addedItem : added)
+            removed.removeIf(removedItem -> (removedItem.getValue().equals(addedItem.getValue())));
+
+        // For every newly checked tree item, perform the positive callback action on its associated TagNode
+        for (TreeItem<String> addedItem : added)
+        {
+            TagNode node = root.findNode(addedItem);
+            if (node != null)
+                callback.action(node, true, false);
+            else
+                System.out.printf("DynamicCheckTreeView.processCheckedDelta: Unable to find TagNode for checked tree item \"%s\"\n", addedItem.getValue());
+        }
+
+        // For every newly unchecked tree item, perform the negative callback action on its associated TagNode
+        for (TreeItem<String> treeItem : removed)
+        {
+            TagNode node = root.findNode(treeItem);
+            if (node != null)
+                callback.action(node, false, false);
+            else
+            {
+                /* If the TagNode can't be found, then it was moved or deleted while checked. The tag's ID should have been stored so that its new location
+                 * (if there is one) can be retrieved from the database. */
+                if (!removedCheckedTagIDs.isEmpty())
+                {
+                    Vector<Integer> lineage = Database.getTagLineage(root.getRootPath(), removedCheckedTagIDs.removeFirst());
+                    node = root.findNode(lineage);
+                    if (node != null)
+                    {
+                        /* If the TagNode was found in a new location, then it has been moved and not deleted. Its new tree item will be in an
+                         * unchecked state and needs to be checked, but the TagNode needs its negative callback action to be performed first.
+                         * In case this behavior is tree-dependent, alert the callback that this is an alternate callback action. */
+                        callback.action(node, false, true);
+
+                        // Attempt to check the TagNode's new tree item in its new location (which should trigger its own positive callback on the associated TagNode)
+                        TreeItem<String> newItem = findItem(node, true);
+                        if (newItem instanceof CheckBoxTreeItem<String>)
+                            ((CheckBoxTreeItem<String>) newItem).setSelected(true);
+                        else
+                            System.out.printf("DynamicCheckTreeView.processCheckedDelta: Unable to find the new tree item for \"%s\"\n", treeItem.getValue());
+
+                        // Perform a positive alternate callback action in case there's a tree-dependent behavior for after the tree item has (hopefully) been checked
+                        callback.action(node, true, true);
+                    }
+                    else
+                        // If the TagNode wasn't found in a new location, then it has been deleted. Indicate with the return value that a negative callback action wasn't performed for it
+                        success = false;
+                }
+                else
+                    System.out.printf("DynamicCheckTreeView.processCheckedDelta: Unable to fetch tag ID for disconnected TreeItem \"%s\"\n", treeItem.getValue());
+            }
+        }
+        return success;
     }
 }

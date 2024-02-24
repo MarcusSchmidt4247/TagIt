@@ -1,12 +1,14 @@
 package com.example.tagger.miscellaneous;
 
 import com.example.tagger.Database;
+import com.example.tagger.IOManager;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.TreeItem;
+import javafx.scene.control.*;
+
 import java.util.Vector;
 
 public class TagNode
@@ -16,11 +18,15 @@ public class TagNode
     public TagNode getParent() { return parent.get(); }
     public void changeParent(TagNode newParent)
     {
-        parent.get().getChildren().remove(this);
-        parent.set(newParent);
-        parent.get().getChildren().add(this);
-
-        Database.updateTagParentage(this);
+        if (newParent.addChild(this))
+        {
+            // Update this tag's parentage in the object and in the database
+            TagNode prevParent = parent.get();
+            parent.set(newParent);
+            Database.updateTagParentage(this);
+            // Then remove it from the previous parent (will start a chain of events requiring up-to-date info)
+            prevParent.removeChild(this);
+        }
     }
 
     private final StringProperty tag;
@@ -29,20 +35,60 @@ public class TagNode
     public void setTag(String tag) { this.tag.setValue(tag); }
 
     private boolean fetchedChildren = false;
+    public boolean fetchedChildren() { return fetchedChildren; }
+
     private final ObservableList<TagNode> children = FXCollections.observableArrayList();
-    public ObservableList<TagNode> getChildren() { return getChildren(false); }
-    public ObservableList<TagNode> getChildren(boolean noFetch)
+    private void fetchChildren()
     {
-        if (!fetchedChildren && !noFetch)
-        {
-            fetchedChildren = true;
-            if (parent.get() == null)
-                Database.getRootTags(this, children);
-            else
-                Database.getChildTags(this, children);
-        }
-        return children;
+        fetchedChildren = true;
+        if (isRoot())
+            Database.getRootTags(this, children);
+        else
+            Database.getChildTags(this, children);
     }
+    public ObservableList<TagNode> childrenProperty() { return children; }
+    public ObservableList<TagNode> getChildren()
+    {
+        if (!fetchedChildren)
+            fetchChildren();
+        return FXCollections.unmodifiableObservableList(children);
+    }
+    public boolean addChild(TagNode child)
+    {
+        /* If this tag is a leaf node, then all the files tagged with it need to be re-tagged with the new child tag.
+         * Confirm that the user is okay with this before adding the child */
+        boolean added = true;
+        if (!isRoot() && isLeaf())
+        {
+            Vector<String> files = Database.getTaggedFiles(this);
+            if (!files.isEmpty())
+            {
+                String header = String.format("There are %d files tagged with \"%s\" that will now also be tagged with \"%s\".", files.size(), tag.get(), child.getTag());
+                String description = "All tags a file is associated with must be part of a chain that ends with a childless tag.";
+                if (IOManager.confirmAction("New Tag", header, description))
+                {
+                    for (String file : files)
+                    {
+                        Database.deleteFileTag(file, this);
+                        Database.addFileTag(file, child);
+                    }
+                }
+                else
+                    added = false;
+            }
+        }
+
+        if (added)
+        {
+            // Ensure the list of this tag's children has been fetched
+            if (!fetchedChildren)
+                fetchChildren();
+            // And then add to it
+            children.add(child);
+        }
+        return added;
+    }
+    public void removeChild(TagNode child) { children.remove(child); }
     public boolean hasChild(String name)
     {
         for (TagNode child : getChildren())
@@ -105,6 +151,15 @@ public class TagNode
     }
     public boolean isExcluded() { return exclusionWeight > 0; }
 
+    public boolean isRoot() { return (parent.get() == null); }
+    public TagNode getRoot()
+    {
+        if (isRoot())
+            return this;
+        else
+            return parent.get().getRoot();
+    }
+
     // Root node constructor
     public TagNode(final String ROOT_PATH)
     {
@@ -113,9 +168,10 @@ public class TagNode
         tag = new SimpleStringProperty("root");
     }
 
+    // General constructor (should not be used for the root node)
     public TagNode(final TagNode parent, final String TAG) { this(parent, TAG, -1); }
 
-    // General constructor (should not be used for the root node unless you want it to be displayed in 'tagPath')
+    // General constructor (should not be used for the root node)
     public TagNode(final TagNode parent, String tag, int id)
     {
         this.parent.set(parent);
@@ -213,16 +269,70 @@ public class TagNode
         return idList.toString();
     }
 
-    public void delete()
+    public boolean delete()
     {
+        // Delete this tag's children first, and halt the process if deleting any of them is unsuccessful
         if (!children.isEmpty())
         {
             for (int i = children.size() - 1; i >= 0; i--)
-                children.get(i).delete();
+            {
+                if (!children.get(i).delete())
+                    return false;
+            }
         }
 
-        Database.deleteTag(this);
-        if (parent.get() != null)
-            parent.get().getChildren().remove(this);
+        // Before deleting this tag, check whether there are any files that will be left untagged without it
+        boolean proceed = false;
+        Vector<String> orphanedFiles = Database.getUniqueFiles(this);
+        if (orphanedFiles.isEmpty())
+            proceed = true;
+        else
+        {
+            // If there are files that will be orphaned, the user must choose to cancel, delete the files, or re-tag them
+            Alert warning = new Alert(Alert.AlertType.WARNING);
+            warning.setTitle("Orphaned Files");
+            warning.setHeaderText(String.format("\"%s\" is the only tag for %d files.", tag.get(), orphanedFiles.size()));
+            warning.setContentText("These files will be inaccessible without at least one tag. They must either be deleted or moved to another tag.");
+            // Get rid of the default button and add three custom  buttons with the appropriate choices
+            warning.getButtonTypes().removeFirst();
+            warning.getButtonTypes().add(new ButtonType("Cancel", ButtonBar.ButtonData.RIGHT));
+            ButtonType deleteButton = new ButtonType("Delete Files", ButtonBar.ButtonData.RIGHT);
+            warning.getButtonTypes().add(deleteButton);
+            ButtonType newTagButton = new ButtonType("Select Tag", ButtonBar.ButtonData.RIGHT);
+            warning.getButtonTypes().add(newTagButton);
+            // Set the button to select a new tag for these files as the default button
+            ((Button) warning.getDialogPane().lookupButton(newTagButton)).setDefaultButton(true);
+            // Show the dialog and record the user's choice
+            warning.showAndWait();
+
+            if (warning.getResult() == deleteButton)
+            {
+                orphanedFiles.forEach(orphan -> IOManager.deleteFile(getRootPath(), orphan));
+                proceed = true;
+            }
+            else if (warning.getResult() == newTagButton)
+            {
+                // If the user chose to re-tag the files, open a tag selector window and re-tag the files in the database with the user's selection
+                TagNode selection = IOManager.selectTag(getRoot(), this);
+                if (selection != null)
+                {
+                    for (String orphan : orphanedFiles)
+                    {
+                        Database.deleteFileTag(orphan, this);
+                        Database.addFileTag(orphan, selection);
+                    }
+                    proceed = true;
+                }
+            }
+        }
+
+        // If there was no problem with orphaned files or if the user resolved the problem, delete this tag
+        if (proceed)
+        {
+            Database.deleteTag(this);
+            if (parent.get() != null)
+                parent.get().removeChild(this);
+        }
+        return proceed;
     }
 }

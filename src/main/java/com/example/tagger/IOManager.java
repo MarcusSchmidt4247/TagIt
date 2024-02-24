@@ -39,8 +39,15 @@ public class IOManager
         return (confirmation.getResult() == ButtonType.OK);
     }
 
-    // Create a window to select a tag from the provided TagNode tree
-    public static TagNode selectTag(Window owner, TagNode treeRoot, TagNode preselectedTag)
+    public static void showError(String message)
+    {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText(message);
+        alert.showAndWait();
+    }
+
+    // Create a window to select a tag from the provided TagNode tree (preselectedTag can be null)
+    public static TagNode selectTag(TagNode treeRoot, TagNode preselectedTag)
     {
         try
         {
@@ -49,8 +56,7 @@ public class IOManager
             TagSelectorController controller = fxmlLoader.getController();
             controller.setTagNodes(treeRoot, preselectedTag);
             Stage stage = new Stage();
-            stage.initOwner(owner);
-            stage.initModality(Modality.WINDOW_MODAL);
+            stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle("Tag Selector");
             stage.setMinWidth(200);
             stage.setMinHeight(200);
@@ -65,16 +71,15 @@ public class IOManager
     }
 
     // Open a window to edit the provided TagNode
-    public static void editTag(Window owner, TagNode treeRoot, TagNode tag)
+    public static void editTag(Window owner, TagNode tag)
     {
         try
         {
             FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("tag-editor-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
-            ((TagEditorController) fxmlLoader.getController()).setTagNodes(treeRoot, tag);
+            ((TagEditorController) fxmlLoader.getController()).setTag(tag);
             Stage stage = new Stage();
             stage.initOwner(owner);
-            stage.initModality(Modality.WINDOW_MODAL);
             stage.setResizable(false);
             stage.setTitle("Edit Tag");
             stage.setScene(scene);

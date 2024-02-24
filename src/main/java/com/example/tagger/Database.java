@@ -73,11 +73,9 @@ public class Database
             int id = (keys.next()) ? keys.getInt(1) : -1;
             tag.setId(id);
 
-            /* A root tag's TagNode is still the child of the root TagNode for the sake of maintaining a single tree with all tags,
-               so this TagNode's parent's parent must be null if it is a root tag and doesn't need a TagParentage entry */
-            if (tag.getParent() != null && tag.getParent().getParent() != null)
+            // If the tag has a parent that is also a tag and NOT the root of the tag tree, insert a row into the TagParentage table to track this relationship
+            if (tag.getParent() != null && !tag.getParent().isRoot())
             {
-                // If this tag has a parent, insert a row into the TagParentage table to track this relationship
                 sql = String.format("INSERT INTO TagParentage VALUES(%d, %d)", tag.getParent().getId(), id);
                 statement.execute(sql);
             }
@@ -172,8 +170,8 @@ public class Database
 
     public static void updateTagParentage(TagNode tag)
     {
-        // If the TagNode does not have a parent then it is the tree's root and NOT a tag in and of itself, so there's nothing to update
-        if (tag.getParent() != null && tag.getId() != -1)
+        // Make sure the TagNode is not the tree's root rather than a tag in and of itself, in which case there would be nothing to update
+        if (!tag.isRoot() && tag.getId() != -1)
         {
             try (Connection connection = connect(tag.getRootPath()))
             {
@@ -182,7 +180,7 @@ public class Database
 
                 // If the tag's new parentage makes it a root tag (its parent is the root of the tag tree), then remove it as a child from the TagParentage table
                 String sql;
-                if (tag.getParent().getParent() == null)
+                if (tag.getParent().isRoot())
                     sql = String.format("DELETE FROM TagParentage WHERE child_id=%d", tag.getId());
                 else
                 {
@@ -252,22 +250,7 @@ public class Database
                 // For each tag ID, reconstruct its lineage and follow it to the equivalent TagNode
                 for (int id : tagIds)
                 {
-                    Vector<Integer> lineage = new Vector<>();
-                    lineage.add(id);
-                    int currentId = id;
-                    do
-                    {
-                        sql = String.format("SELECT parent_id FROM TagParentage WHERE child_id=%d", currentId);
-                        results = statement.executeQuery(sql);
-                        if (results.next())
-                        {
-                            currentId = results.getInt(1);
-                            lineage.insertElementAt(currentId, 0);
-                        }
-                        else
-                            currentId = -1;
-                    } while (currentId != -1);
-
+                    Vector<Integer> lineage = getTagLineage(root.getRootPath(), id);
                     TagNode tag = root.findNode(lineage);
                     if (tag != null)
                         tags.add(tag);
@@ -285,6 +268,64 @@ public class Database
         }
 
         return tags;
+    }
+
+    public static Vector<Integer> getTagLineage(String path, int id)
+    {
+        Vector<Integer> lineage = new Vector<>();
+        lineage.add(id);
+        try (Connection connection = connect(path))
+        {
+            int currentId = id;
+            Statement statement = connection.createStatement();
+            ResultSet results;
+            do
+            {
+                String sql = String.format("SELECT parent_id FROM TagParentage WHERE child_id=%d", currentId);
+                results = statement.executeQuery(sql);
+                if (results.next())
+                {
+                    currentId = results.getInt(1);
+                    lineage.insertElementAt(currentId, 0);
+                }
+                else
+                    currentId = -1;
+            } while (currentId != -1);
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return lineage;
+    }
+
+    // Return the list of names of every file in the managed directory that is associated with the provided tag
+    public static Vector<String> getTaggedFiles(TagNode tag)
+    {
+        Vector<String> files = new Vector<>();
+
+        if (tag.getId() != -1)
+        {
+            try (Connection connection = connect(tag.getRootPath()))
+            {
+                String sql = String.format("SELECT DISTINCT name FROM File JOIN FileTags ON id=file_id WHERE tag_id=%d", tag.getId());
+
+                Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery(sql);
+                while (results.next())
+                    files.add(results.getString(1));
+                statement.close();
+            }
+            catch (SQLException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.printf("Database.getTaggedFiles: \"%s\" tag ID = -1\n", tag.getTag());
+
+        return files;
     }
 
     // Return the list of names of every file in the managed directory that meets the tag criteria

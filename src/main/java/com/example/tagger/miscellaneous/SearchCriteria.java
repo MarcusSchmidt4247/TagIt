@@ -56,7 +56,11 @@ public class SearchCriteria
                 includeAll.add(tag);
         }
 
-        for (TagNode child : tag.getChildren(true))
-            getNodeIds(child);
+        // Recurse only if this tag has fetched its children (if not, they can't be active)
+        if (tag.fetchedChildren())
+        {
+            for (TagNode child : tag.getChildren())
+                getNodeIds(child);
+        }
     }
 }

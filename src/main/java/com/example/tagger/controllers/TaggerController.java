@@ -2,7 +2,7 @@ package com.example.tagger.controllers;
 
 import com.example.tagger.*;
 import com.example.tagger.gui.DynamicCheckTreeView;
-import com.example.tagger.gui.FileNameDialog;
+import com.example.tagger.gui.NameInputDialog;
 import com.example.tagger.gui.MediaControlView;
 import com.example.tagger.miscellaneous.SearchCriteria;
 import com.example.tagger.miscellaneous.TagNode;
@@ -99,27 +99,38 @@ public class TaggerController
             tagTreeView.init(taggerModel.getTreeRoot());
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
+                Vector<TreeItem<String>> added = new Vector<>();
+                Vector<TreeItem<String>> removed = new Vector<>();
                 while (change.next())
                 {
-                    if (change.wasAdded())
-                        change.getAddedSubList().forEach(item -> taggerModel.getTreeRoot().findNode(item).activateNode(true));
-                    if (change.wasRemoved())
-                        change.getRemoved().forEach(item -> taggerModel.getTreeRoot().findNode(item).activateNode(false));
+                    added.addAll(change.getAddedSubList());
+                    removed.addAll(change.getRemoved());
                 }
+                tagTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
+                {
+                    // Unless both 'checked' and 'alt' are true, activate or deactivate the node according to 'checked'
+                    if (!(checked && alt))
+                        node.activateNode(checked);
+                });
                 getCurrentFiles();
             });
 
             excludeTreeView.init(taggerModel.getTreeRoot());
             excludeTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
+                Vector<TreeItem<String>> added = new Vector<>();
+                Vector<TreeItem<String>> removed = new Vector<>();
                 while (change.next())
                 {
-                    if (change.wasAdded())
-                        change.getAddedSubList().forEach(item -> taggerModel.getTreeRoot().findNode(item).excludeNode(true));
-                    if (change.wasRemoved())
-                        change.getRemoved().forEach(item -> taggerModel.getTreeRoot().findNode(item).excludeNode(false));
+                    added.addAll(change.getAddedSubList());
+                    removed.addAll(change.getRemoved());
                 }
-
+                excludeTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
+                {
+                    // Unless both 'checked' and 'alt' are true, exclude or stop excluding the node according to 'checked'
+                    if (!(checked && alt))
+                        node.excludeNode(checked);
+                });
                 // Only update the current list of files if excluded tags are an enabled search criteria
                 if (excludeCheckBox.isSelected())
                     getCurrentFiles();
@@ -196,7 +207,7 @@ public class TaggerController
     @FXML
     public void onEditFileName()
     {
-        FileNameDialog dialog = new FileNameDialog(taggerModel.currentFile());
+        NameInputDialog dialog = new NameInputDialog(taggerModel.currentFile());
         if (dialog.showAndLoop())
         {
             taggerModel.renameCurrentFile(dialog.getName());
@@ -311,7 +322,13 @@ public class TaggerController
             editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
             editTreeView.getCheckModel().clearChecks();
             Vector<TagNode> tags = Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
-            tags.forEach(tag -> ((CheckBoxTreeItem<String>) editTreeView.findItem(tag, true)).setSelected(true));
+            for (TagNode tag : tags)
+            {
+                if (tag.isLeaf())
+                    ((CheckBoxTreeItem<String>) editTreeView.findItem(tag, true)).setSelected(true);
+                else
+                    System.out.printf("TaggerController.refreshEditPane: Tag \"%s\" is not a leaf\n", tag.getTag());
+            }
             editTreeView.getCheckModel().getCheckedItems().addListener(editTreeListener);
         }
         else
@@ -333,13 +350,30 @@ public class TaggerController
         {
             if (taggerModel.currentFile() != null)
             {
+                Vector<TreeItem<String>> added = new Vector<>();
+                Vector<TreeItem<String>> removed = new Vector<>();
                 while (change.next())
                 {
-                    if (change.wasAdded())
-                        change.getAddedSubList().forEach(item -> Database.addFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
-                    if (change.wasRemoved())
-                        change.getRemoved().forEach(item -> Database.deleteFileTag(taggerModel.currentFile(), taggerModel.getTreeRoot().findNode(item)));
+                    added.addAll(change.getAddedSubList());
+                    removed.addAll(change.getRemoved());
                 }
+                editTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
+                {
+                    if (!alt)
+                    {
+                        if (checked)
+                            Database.addFileTag(taggerModel.currentFile(), node);
+                        else
+                            Database.deleteFileTag(taggerModel.currentFile(), node);
+                    }
+                    else
+                    {
+                        if (checked)
+                            editTreeView.getCheckModel().getCheckedItems().addListener(editTreeListener);
+                        else
+                            editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
+                    }
+                });
             }
         }
     };

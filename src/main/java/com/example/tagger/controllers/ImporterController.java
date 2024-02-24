@@ -2,7 +2,7 @@ package com.example.tagger.controllers;
 
 import com.example.tagger.*;
 import com.example.tagger.gui.DynamicCheckTreeView;
-import com.example.tagger.gui.FileNameDialog;
+import com.example.tagger.gui.NameInputDialog;
 import com.example.tagger.gui.MediaControlView;
 import com.example.tagger.gui.TreeViewMenuHandler;
 import com.example.tagger.miscellaneous.TagNode;
@@ -22,6 +22,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
+import java.util.Vector;
 
 public class ImporterController
 {
@@ -128,30 +129,38 @@ public class ImporterController
             tagTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
             tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
             {
-                // When a tree element is (un)checked, add or remove the associated TagNode from the list of tags that will be applied
+                Vector<TreeItem<String>> added = new Vector<>();
+                Vector<TreeItem<String>> removed = new Vector<>();
                 while (change.next())
                 {
-                    if (change.wasAdded())
+                    added.addAll(change.getAddedSubList());
+                    removed.addAll(change.getRemoved());
+                }
+
+                DynamicCheckTreeView.ActionCallback callback = (node, checked, alt) ->
+                {
+                    // Unless both 'checked' and 'alt' are true, add or remove the associated TagNode from the list of tags that will be applied to a file on import
+                    if (!(checked && alt))
                     {
-                        for (TreeItem<String> item : change.getAddedSubList())
-                        {
-                            TagNode addedNode = taggerModel.getTreeRoot().findNode(item);
-                            if (addedNode != null)
-                                importerModel.getAppliedTags().add(addedNode);
-                            else
-                                System.out.printf("ImporterController.getCheckedItems listener: Unable to find node for added tree item \"%s\"\n", item.getValue());
-                        }
+                        if (checked)
+                            importerModel.getAppliedTags().add(node);
+                        else
+                            importerModel.getAppliedTags().remove(node);
                     }
-                    if (change.wasRemoved())
+                };
+
+                if (!tagTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), callback))
+                {
+                    /* If one of the tags was deleted while checked, then the list of applied tags will be inaccurate.
+                     * Reconstruct the list from scratch to keep it up-to-date. */
+                    importerModel.getAppliedTags().clear();
+                    for (TreeItem<String> item : tagTreeView.getCheckModel().getCheckedItems())
                     {
-                        for (TreeItem<String> item : change.getRemoved())
-                        {
-                            TagNode removedNode = taggerModel.getTreeRoot().findNode(item);
-                            if (removedNode != null)
-                                importerModel.getAppliedTags().remove(removedNode);
-                            else
-                                System.out.printf("ImporterController.getCheckedItems listener: Unable to find node for removed tree item \"%s\"\n", item.getValue());
-                        }
+                        TagNode node = taggerModel.getTreeRoot().findNode(item);
+                        if (node != null)
+                            importerModel.getAppliedTags().add(node);
+                        else
+                            System.out.printf("ImporterController.tagTreeView listener: Unable to locate node for \"%s\"\n", item.getValue());
                     }
                 }
 
@@ -281,7 +290,7 @@ public class ImporterController
             if (alert.getResult() != ButtonType.CANCEL)
             {
                 // If the user chose to rename the file, open a text input dialog and import the file with the provided new name
-                FileNameDialog dialog = new FileNameDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
+                NameInputDialog dialog = new NameInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
                 if (dialog.showAndLoop())
                     importFile(source, Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), dialog.getName())));
             }
