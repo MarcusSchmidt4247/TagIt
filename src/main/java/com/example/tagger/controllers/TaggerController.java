@@ -86,7 +86,16 @@ public class TaggerController
         criteriaChoiceBox.setOnAction(actionEvent -> getCurrentFiles());
 
         // Refresh the current files every time the exclude tags search criteria is toggled
-        excludeCheckBox.selectedProperty().addListener((observableValue, aBoolean, t1) -> getCurrentFiles());
+        excludeCheckBox.selectedProperty().addListener((observableValue, aBoolean, t1) ->
+        {
+            // If checked but the exclude tree view is hidden, expand it
+            if (observableValue.getValue() && !excludeTreeView.isVisible())
+                onToggleExcludeView();
+
+            // If there are any excluded tags, refresh the current files with the new exclude state
+            if (!excludeTreeView.getCheckModel().getCheckedItems().isEmpty())
+                getCurrentFiles();
+        });
     }
 
     public void setModel(TaggerModel taggerModel)
@@ -362,9 +371,26 @@ public class TaggerController
                     if (!alt)
                     {
                         if (checked)
+                        {
+                            // If this item is the only one checked, it's now safe to delete the file's last tag because a new one is about to be added
+                            if (editTreeView.getCheckModel().getCheckedItems().size() == 1)
+                            {
+                                Vector<TagNode> tags = Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
+                                if (!tags.isEmpty())
+                                    Database.deleteFileTag(taggerModel.currentFile(), tags.getFirst());
+                            }
+
+                            // Add the new file tag
                             Database.addFileTag(taggerModel.currentFile(), node);
+                        }
                         else
-                            Database.deleteFileTag(taggerModel.currentFile(), node);
+                        {
+                            // Only delete this file's tag if it has at least one more
+                            if (Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile()).size() > 1)
+                                Database.deleteFileTag(taggerModel.currentFile(), node);
+                            else
+                                IOManager.showError("File will be inaccessible without at least one tag.");
+                        }
                     }
                     else
                     {

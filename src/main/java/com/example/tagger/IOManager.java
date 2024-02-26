@@ -215,28 +215,33 @@ public class IOManager
 
     public static boolean renameFile(String oldName, String newName)
     {
-        // Attempt to rename the actual file's name
-        String oldPath = getFilePath(oldName);
-        String newPath = getFilePath(newName);
-
-        File file = new File(oldPath);
-        if (file.renameTo(new File(newPath)))
+        // Check that the new file name isn't already being used
+        String targetPath = getFilePath(newName);
+        File target = new File(targetPath);
+        if (!target.exists())
         {
-            if (Database.renameFileInDatabase(oldName, newName))
-                return true;
-            else
+            // If not, rename the actual file
+            String oldPath = getFilePath(oldName);
+            File file = new File(oldPath);
+            if (file.renameTo(target))
             {
-                // If unable to rename the file in the database, attempt to revert the actual file's name for consistency
-                if (!file.renameTo(new File(oldPath)))
-                    System.out.println("IOManager.renameFile: Unable to revert filename");
-                return false;
+                // Then rename the file in the database
+                if (Database.renameFileInDatabase(oldName, newName))
+                    return true;
+                else
+                {
+                    // If unable to rename the file in the database, attempt to revert the actual file's name for consistency
+                    if (!file.renameTo(new File(oldPath)))
+                        System.out.println("IOManager.renameFile: Unable to revert filename");
+                }
             }
+            else
+                System.out.println("IOManager.renameFile: Unable to rename file");
         }
         else
-        {
-            System.out.println("IOManager.renameFile: Unable to rename file");
-            return false;
-        }
+            showError("This file name is already taken");
+
+        return false;
     }
 
     public static void deleteFile(String fileName)
