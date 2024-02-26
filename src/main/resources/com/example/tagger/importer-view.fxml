@@ -29,7 +29,7 @@
                 <ImageView fx:id="imageView" preserveRatio="true"/>
                 <MediaControlView fx:id="mediaView" visible="false"/>
             </StackPane>
-            <CheckBox fx:id="copyCheckBox" text="Import copy of file"/>
+            <!--CheckBox fx:id="copyCheckBox" text="Import copy of file"/-->
         </VBox>
         <!-- The right side of the window contains the import controls -->
         <AnchorPane HBox.hgrow="ALWAYS" prefWidth="450" maxWidth="450">

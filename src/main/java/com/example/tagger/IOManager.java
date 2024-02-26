@@ -14,9 +14,107 @@ import javafx.stage.Window;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 
 public class IOManager
 {
+    private static String rootDirectory = null;
+    public static String getRootDirectory() { return rootDirectory; }
+
+    private static String storageDirectory = null;
+    private static String pathSeparator = null;
+
+    /* Check whether the required program directories and database file exist, creating them if not.
+     * This method should be called immediately after the application launches, and can be called again later at any time
+     * to confirm that nothing has been deleted. */
+    public static boolean verify()
+    {
+        // Determine the platform-appropriate path for the root program directory
+        if (rootDirectory == null)
+        {
+            String homePath = System.getProperty("user.home");
+            if (System.getProperty("os.name").startsWith("Windows"))
+                rootDirectory = formatPath(homePath, "AppData", "Local", "Programs", "tagger");
+            else
+                rootDirectory = formatPath(homePath, "Applications", "tagger");
+        }
+
+        if (storageDirectory == null)
+            storageDirectory = formatPath(rootDirectory, "Storage");
+
+        // Check whether the root program directory exists, and create it if not
+        File root = new File(rootDirectory);
+        if (!root.exists() && !root.mkdir())
+        {
+            System.out.println("IOManager.verify: Root directory doesn't exist and can't be created");
+            showError("Program directory does not exist");
+            return false;
+        }
+
+        // Check whether the program's storage directory exists, and create it if not
+        File storage = new File(storageDirectory);
+        if (!storage.exists() && !storage.mkdir())
+        {
+            System.out.println("IOManager.verify: Storage directory doesn't exist and can't be created");
+            showError("Storage directory does not exist");
+            return false;
+        }
+
+        // Check whether the program's database file exists (create it if not) and is up-to-date
+        File database = new File(formatPath(rootDirectory, Database.getName()));
+        if (!database.isFile())
+        {
+            try
+            {
+                if (!(database.createNewFile() && Database.createTables()))
+                {
+                    showError("Cannot create database");
+                    return false;
+                }
+            }
+            catch (IOException | SecurityException exception)
+            {
+                System.out.printf("IOManager.verify: %s\n", exception.toString());
+                showError("Cannot create database file");
+                return false;
+            }
+        }
+        else if (!Database.isUpToDate())
+        {
+            showError("Incompatible database version");
+            return false;
+        }
+
+        return true;
+    }
+
+    // Construct a file path from two or more segments using the current operating system's path separator
+    public static String formatPath(String rootPath, String ... relativePaths)
+    {
+        if (rootPath == null)
+            return null;
+        else
+        {
+            if (pathSeparator == null)
+                pathSeparator = FileSystems.getDefault().getSeparator();
+
+            StringBuilder path = new StringBuilder();
+            path.append(rootPath);
+            for (String step : relativePaths)
+            {
+                if (!path.toString().endsWith(pathSeparator))
+                    path.append(pathSeparator);
+                path.append(step);
+            }
+            return path.toString();
+        }
+    }
+
+    public static String getFilePath(String filename)
+    {
+        return formatPath(storageDirectory, filename);
+    }
+
     public static boolean validInput(String input)
     {
         for (char c : input.toCharArray())
@@ -115,16 +213,16 @@ public class IOManager
         }
     }
 
-    public static boolean renameFile(String path, String oldName, String newName)
+    public static boolean renameFile(String oldName, String newName)
     {
         // Attempt to rename the actual file's name
-        String oldPath = String.format("%s/Storage/%s", path, oldName);
-        String newPath = String.format("%s/Storage/%s", path, newName);
+        String oldPath = getFilePath(oldName);
+        String newPath = getFilePath(newName);
 
         File file = new File(oldPath);
         if (file.renameTo(new File(newPath)))
         {
-            if (Database.renameFileInDatabase(path, oldName, newName))
+            if (Database.renameFileInDatabase(oldName, newName))
                 return true;
             else
             {
@@ -141,14 +239,14 @@ public class IOManager
         }
     }
 
-    public static void deleteFile(String path, String fileName)
+    public static void deleteFile(String fileName)
     {
         // Delete the actual file from the managed directory
-        File file = new File(String.format("%s/Storage/%s", path, fileName));
+        File file = new File(getFilePath(fileName));
         if (!file.delete())
             System.out.println("IOManager.deleteFile: Unable to delete file");
 
         // Delete the file's information from the database
-        Database.deleteFileFromDatabase(path, fileName);
+        Database.deleteFileFromDatabase(fileName);
     }
 }

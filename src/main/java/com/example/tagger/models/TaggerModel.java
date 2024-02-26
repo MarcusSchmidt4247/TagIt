@@ -7,19 +7,15 @@ import java.util.Vector;
 
 public class TaggerModel
 {
-    private final String path;
-    public String getPath() { return path; }
-
     private final TagNode tagTreeRoot;
     public TagNode getTreeRoot() { return tagTreeRoot; }
 
     private final Vector<String> files = new Vector<>();
     private int currFileIndex = -1;
 
-    public TaggerModel(final String path)
+    public TaggerModel()
     {
-        this.path = path;
-        tagTreeRoot = new TagNode(path);
+        tagTreeRoot = new TagNode();
     }
 
     public String firstFile()
@@ -79,7 +75,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            boolean successful = IOManager.renameFile(path, files.get(currFileIndex), name);
+            boolean successful = IOManager.renameFile(files.get(currFileIndex), name);
             if (successful)
                 files.set(currFileIndex, name);
         }
@@ -89,7 +85,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            IOManager.deleteFile(path, files.get(currFileIndex));
+            IOManager.deleteFile(files.get(currFileIndex));
             files.removeElementAt(currFileIndex);
 
             if (currFileIndex >= files.size())

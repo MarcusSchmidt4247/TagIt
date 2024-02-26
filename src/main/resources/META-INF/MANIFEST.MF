@@ -1,0 +1,13 @@
+Manifest-Version: 1.0
+Main-Class: com.example.tagger.TaggerLauncher
+Class-Path: javafx-base-21.jar javafx-graphics-21-mac-aarch64.jar javafx
+ -controls-21-win.jar ikonli-javafx-12.3.1.jar javafx-fxml-21-mac-aarch6
+ 4.jar ikonli-boxicons-pack-12.3.1.jar javafx-graphics-21-mac.jar javafx
+ -controls-21-mac.jar javafx-controls-21-mac-aarch64.jar javafx-base-21-
+ mac.jar javafx-base-21-mac-aarch64.jar javafx-media-22-ea+16-mac.jar sl
+ f4j-api-1.7.36.jar javafx-controls-21.jar javafx-base-21-win.jar sqlite
+ -jdbc-3.45.0.0.jar javafx-graphics-21.jar javafx-media-22-ea+16-mac-aar
+ ch64.jar javafx-graphics-21-win.jar javafx-media-22-ea+16-win.jar javaf
+ x-fxml-21-mac.jar javafx-fxml-21-win.jar controlsfx-11.1.2.jar ikonli-c
+ ore-12.3.1.jar slf4j-simple-1.7.36.jar
+

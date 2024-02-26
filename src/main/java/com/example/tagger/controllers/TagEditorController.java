@@ -71,10 +71,7 @@ public class TagEditorController
         ((Stage) nameField.getScene().getWindow()).close();
     }
 
-    public void onCancelButton()
-    {
-        ((Stage) nameField.getScene().getWindow()).close();
-    }
+    public void onCancelButton() { ((Stage) nameField.getScene().getWindow()).close(); }
 
     public void onDeleteButton()
     {

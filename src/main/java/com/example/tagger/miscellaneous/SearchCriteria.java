@@ -26,9 +26,6 @@ public class SearchCriteria
     private final Vector<Integer> excludeIds = new Vector<>();
     public Vector<Integer> getExcludeIds() { return excludeIds; }
 
-    private final String path;
-    public String getPath() { return path; }
-
     private final boolean anyMatch;
     public boolean isAnyMatch() { return anyMatch; }
 
@@ -36,7 +33,6 @@ public class SearchCriteria
 
     public SearchCriteria(TagNode root, boolean anyMatch, boolean excluding, SortMethod sortMethod)
     {
-        path = root.getRootPath();
         this.anyMatch = anyMatch;
         this.excluding = excluding;
         this.sortMethod = sortMethod;

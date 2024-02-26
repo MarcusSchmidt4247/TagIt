@@ -257,7 +257,7 @@ public class TaggerController
     {
         if (fileName != null)
         {
-            String filePath = String.format("%s/Storage/%s", taggerModel.getPath(), fileName);
+            String filePath = IOManager.getFilePath(fileName);
             if (fileName.toLowerCase().matches(".+[.](jpe?g|png)$"))
             {
                 try (FileInputStream input = new FileInputStream(filePath))

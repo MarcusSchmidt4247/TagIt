@@ -265,7 +265,7 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
                  * (if there is one) can be retrieved from the database. */
                 if (!removedCheckedTagIDs.isEmpty())
                 {
-                    Vector<Integer> lineage = Database.getTagLineage(root.getRootPath(), removedCheckedTagIDs.removeFirst());
+                    Vector<Integer> lineage = Database.getTagLineage(removedCheckedTagIDs.removeFirst());
                     node = root.findNode(lineage);
                     if (node != null)
                     {

@@ -4,76 +4,81 @@ import com.example.tagger.miscellaneous.SearchCriteria;
 import com.example.tagger.miscellaneous.TagNode;
 import javafx.collections.ObservableList;
 
-import java.io.File;
-import java.io.IOException;
 import java.sql.*;
 import java.util.Vector;
 
 public class Database
 {
+    private static final String NAME = "database.db";
+    public static String getName() { return NAME; }
+
     private static final int VERSION = 1;
 
-    // Ensure the database file exists
-    public static boolean verify(final String path)
+    public static boolean createTables()
     {
-        // Create a file object representing what should be a valid database in the device's file system
-        File database = new File(String.format("%s/database.db", path));
-        if (!database.isFile())
+        try (Connection connection = connect(false))
         {
-            // If this file object does not represent a valid file, try to create it
-            try
-            {
-                if (database.createNewFile())
-                {
-                    // If successful, try to connect to it as a SQLite database
-                    try (Connection connection = connect(database.getAbsolutePath()))
-                    {
-                        if (connection.isValid(5))
-                        {
-                            // If successful, create the database tables
-                            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL)";
-                            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
-                            String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
-                                    "tag_id INTEGER NOT NULL," +
-                                    "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
-                                    "FOREIGN KEY (tag_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                    "PRIMARY KEY (file_id, tag_id))";
-                            String tagParentageSchema = "CREATE TABLE TagParentage(parent_id INTEGER NOT NULL," +
-                                    "child_id INTEGER NOT NULL," +
-                                    "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                    "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
-                                    "PRIMARY KEY (parent_id, child_id))";
-                            String databaseInfoSchema = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
-                            Statement statement = connection.createStatement();
-                            statement.execute(fileSchema);
-                            statement.execute(tagSchema);
-                            statement.execute(fileTagsSchema);
-                            statement.execute(tagParentageSchema);
-                            statement.execute(databaseInfoSchema);
-                            // Insert the current version number into the DatabaseInfo table
-                            String sql = String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION);
-                            statement.execute(sql);
-                            statement.close();
-                        }
-                        else
-                            return false;
-                    }
-                }
-            }
-            catch (IOException | SQLException exception)
-            {
-                System.out.println(exception.toString());
-                return false;
-            }
+            // If successful, create the database tables
+            String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL)";
+            String tagSchema = "CREATE TABLE Tag(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE)";
+            String fileTagsSchema = "CREATE TABLE FileTags(file_id INTEGER NOT NULL," +
+                    "tag_id INTEGER NOT NULL," +
+                    "FOREIGN KEY (file_id) REFERENCES File(id) ON DELETE CASCADE," +
+                    "FOREIGN KEY (tag_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                    "PRIMARY KEY (file_id, tag_id))";
+            String tagParentageSchema = "CREATE TABLE TagParentage(parent_id INTEGER NOT NULL," +
+                    "child_id INTEGER NOT NULL," +
+                    "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                    "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
+                    "PRIMARY KEY (parent_id, child_id))";
+            String databaseInfoSchema = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
+            Statement statement = connection.createStatement();
+            statement.execute(fileSchema);
+            statement.execute(tagSchema);
+            statement.execute(fileTagsSchema);
+            statement.execute(tagParentageSchema);
+            statement.execute(databaseInfoSchema);
+            // Insert the current version number into the DatabaseInfo table
+            String sql = String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION);
+            statement.execute(sql);
+            statement.close();
+            return true;
         }
+        catch (SQLException exception)
+        {
+            System.out.println(exception.toString());
+            return false;
+        }
+    }
 
-        return true;
+    public static boolean isUpToDate()
+    {
+        boolean upToDate = false;
+        try (Connection connection = connect())
+        {
+            Statement statement = connection.createStatement();
+            ResultSet result = statement.executeQuery("SELECT version FROM DatabaseInfo");
+            if (result.next())
+            {
+                int version = result.getInt(1);
+                if (version == VERSION)
+                    upToDate = true;
+                else
+                    System.out.printf("Database.isUpToDate: Incompatible database (%d in file, %d is required)", version, VERSION);
+            }
+            else
+                System.out.println("Database.isUpToDate: Unable to retrieve database version from file");
+            statement.close();
+        }
+        catch (SQLException exception) { System.out.printf("Database.isUpToDate: %s\n", exception.toString()); }
+
+        return upToDate;
     }
 
     // Save a newly created TagNode to the database
     public static void addTag(TagNode tag)
     {
-        try (Connection connection = connect(tag.getRootPath()))
+        try (Connection connection = connect())
         {
             String sql = String.format("INSERT INTO Tag(name) VALUES(\"%s\")", tag.getTag());
             Statement statement = connection.createStatement();
@@ -103,7 +108,7 @@ public class Database
     public static void getRootTags(TagNode root, ObservableList<TagNode> tags)
     {
         tags.clear();
-        try (Connection connection = connect(root.getRootPath()))
+        try (Connection connection = connect())
         {
             String sql = "SELECT name, id FROM Tag WHERE id NOT IN (SELECT child_id FROM TagParentage) ORDER BY name ASC";
             Statement statement = connection.createStatement();
@@ -122,7 +127,7 @@ public class Database
     public static void getChildTags(TagNode parent, ObservableList<TagNode> children)
     {
         children.clear();
-        try (Connection connection = connect(parent.getRootPath()))
+        try (Connection connection = connect())
         {
             String sql = "SELECT name, id FROM Tag JOIN TagParentage ON id=child_id WHERE parent_id=? ORDER BY name ASC";
             PreparedStatement statement = connection.prepareStatement(sql);
@@ -144,7 +149,7 @@ public class Database
     // Return whether the provided tag has any children tags
     public static boolean isLeafTag(TagNode tag)
     {
-        try (Connection connection = connect(tag.getRootPath()))
+        try (Connection connection = connect())
         {
             String sql = String.format("SELECT count(parent_id) FROM TagParentage WHERE parent_id=%d", tag.getId());
             Statement statement = connection.createStatement();
@@ -164,7 +169,7 @@ public class Database
         // A tag with the ID -1 has not been written to the database yet, so it cannot be updated
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 String sql = String.format("UPDATE Tag SET name=\"%s\" WHERE id=%d", tag.getTag(), tag.getId());
                 Statement statement = connection.createStatement();
@@ -185,7 +190,7 @@ public class Database
         // Make sure the TagNode is not the tree's root rather than a tag in and of itself, in which case there would be nothing to update
         if (!tag.isRoot() && tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -221,7 +226,7 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -242,7 +247,7 @@ public class Database
     {
         Vector<TagNode> tags = new Vector<>();
 
-        try (Connection connection = connect(root.getRootPath()))
+        try (Connection connection = connect())
         {
             // Get this file's ID
             Statement statement = connection.createStatement();
@@ -262,7 +267,7 @@ public class Database
                 // For each tag ID, reconstruct its lineage and follow it to the equivalent TagNode
                 for (int id : tagIds)
                 {
-                    Vector<Integer> lineage = getTagLineage(root.getRootPath(), id);
+                    Vector<Integer> lineage = getTagLineage(id);
                     TagNode tag = root.findNode(lineage);
                     if (tag != null)
                         tags.add(tag);
@@ -282,11 +287,11 @@ public class Database
         return tags;
     }
 
-    public static Vector<Integer> getTagLineage(String path, int id)
+    public static Vector<Integer> getTagLineage(int id)
     {
         Vector<Integer> lineage = new Vector<>();
         lineage.add(id);
-        try (Connection connection = connect(path))
+        try (Connection connection = connect())
         {
             int currentId = id;
             Statement statement = connection.createStatement();
@@ -319,7 +324,7 @@ public class Database
 
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 String sql = String.format("SELECT DISTINCT name FROM File JOIN FileTags ON id=file_id WHERE tag_id=%d", tag.getId());
 
@@ -346,7 +351,7 @@ public class Database
         Vector<String> files = new Vector<>();
         if (!searchCriteria.getIncludeAny().isEmpty() || !searchCriteria.getIncludeAll().isEmpty())
         {
-            try (Connection connection = connect(searchCriteria.getPath()))
+            try (Connection connection = connect())
             {
                 String table = "File";
                 String sql;
@@ -429,11 +434,11 @@ public class Database
     }
 
     // Save a newly imported file to the database
-    public static void saveFile(final String path, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
+    public static void saveFile(String fileName, long fileCreatedMillis, Vector<TagNode> tags)
     {
         if (!tags.isEmpty())
         {
-            try (Connection connection = connect(path))
+            try (Connection connection = connect())
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -482,7 +487,7 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -514,7 +519,7 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -548,7 +553,7 @@ public class Database
 
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect(tag.getRootPath()))
+            try (Connection connection = connect())
             {
                 String sql = "SELECT name FROM File JOIN FileTags ON id=FileTags.file_id " +
                         String.format("JOIN (SELECT file_id FROM FileTags WHERE tag_id=%d) as ids ON id=ids.file_id ", tag.getId()) +
@@ -571,9 +576,9 @@ public class Database
         return files;
     }
 
-    public static boolean renameFileInDatabase(String path, String oldName, String newName)
+    public static boolean renameFileInDatabase(String oldName, String newName)
     {
-        try (Connection connection = connect(path))
+        try (Connection connection = connect())
         {
             String sql = String.format("UPDATE File SET name=\"%s\" WHERE name=\"%s\"", newName, oldName);
             Statement statement = connection.createStatement();
@@ -589,9 +594,9 @@ public class Database
         }
     }
 
-    public static void deleteFileFromDatabase(String path, String fileName)
+    public static void deleteFileFromDatabase(String fileName)
     {
-        try (Connection connection = connect(path))
+        try (Connection connection = connect())
         {
             Statement statement = connection.createStatement();
             statement.execute("PRAGMA foreign_keys = ON");
@@ -604,9 +609,27 @@ public class Database
         }
     }
 
-    private static Connection connect(String path) throws SQLException
+    private static Connection connect() throws SQLException { return connect(true); }
+
+    private static Connection connect(boolean retry) throws SQLException
     {
-        String url = String.format("jdbc:sqlite:%s/%s", path, "database.db");
-        return DriverManager.getConnection(url);
+        try
+        {
+            // Attempt to return a connection to the database file in the program's root directory
+            String url = IOManager.formatPath(String.format("jdbc:sqlite:%s", IOManager.getRootDirectory()), NAME);
+            return DriverManager.getConnection(url);
+        }
+        catch (SQLException exception)
+        {
+            // If something went wrong and a retry is permitted, re-verify the program directories and database file before trying again
+            if (retry && IOManager.verify())
+            {
+                System.out.printf("Database.connect: %s\n", exception);
+                System.out.println("Database.connect: Verified files. Retrying connection...");
+                return connect(false);
+            }
+            else
+                throw exception;
+        }
     }
 }

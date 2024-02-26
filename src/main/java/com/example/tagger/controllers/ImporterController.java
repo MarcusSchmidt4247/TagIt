@@ -247,7 +247,7 @@ public class ImporterController
         {
             File importFile = importerModel.getFiles().get(importerModel.importIndex);
             Path source = Path.of(importFile.getAbsolutePath());
-            Path target = Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), importFile.getName()));
+            Path target = Path.of(IOManager.getFilePath(importFile.getName()));
             importFile(source, target);
         }
     }
@@ -276,7 +276,7 @@ public class ImporterController
             }
 
             // Record this file, its creation time, and the tags being applied to it in the database
-            Database.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
+            Database.saveFile(target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
             importerModel.getFiles().remove(importerModel.importIndex);
         }
         catch (FileAlreadyExistsException e)
@@ -292,7 +292,7 @@ public class ImporterController
                 // If the user chose to rename the file, open a text input dialog and import the file with the provided new name
                 NameInputDialog dialog = new NameInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
                 if (dialog.showAndLoop())
-                    importFile(source, Path.of(String.format("%s/Storage/%s", taggerModel.getPath(), dialog.getName())));
+                    importFile(source, Path.of(IOManager.getFilePath(dialog.getName())));
             }
         }
         catch (IOException e)

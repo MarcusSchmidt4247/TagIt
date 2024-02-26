@@ -107,9 +107,6 @@ public class TagNode
             return children.isEmpty();
     }
 
-    private final String ROOT_PATH;
-    public String getRootPath() { return ROOT_PATH; }
-
     public String getTagPath()
     {
         if (parent.get() == null)
@@ -161,9 +158,8 @@ public class TagNode
     }
 
     // Root node constructor
-    public TagNode(final String ROOT_PATH)
+    public TagNode()
     {
-        this.ROOT_PATH = ROOT_PATH;
         parent.set(null);
         tag = new SimpleStringProperty("root");
     }
@@ -175,7 +171,6 @@ public class TagNode
     public TagNode(final TagNode parent, String tag, int id)
     {
         this.parent.set(parent);
-        ROOT_PATH = parent.getRootPath();
         this.tag = new SimpleStringProperty(tag);
         this.id = id;
         activationWeight = 0;
@@ -307,7 +302,7 @@ public class TagNode
 
             if (warning.getResult() == deleteButton)
             {
-                orphanedFiles.forEach(orphan -> IOManager.deleteFile(getRootPath(), orphan));
+                orphanedFiles.forEach(IOManager::deleteFile);
                 proceed = true;
             }
             else if (warning.getResult() == newTagButton)
