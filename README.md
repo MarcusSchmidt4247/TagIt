@@ -8,13 +8,9 @@ File organization can be the key or bottleneck to productivity. Too little organ
 
 The goal of this project is to provide a free tool that is equally suitable for managing personal and work files. The following video is a small example of how photos from a variety of categories can be quickly filtered to exactly what you want to see.
 
-<p align="center">
-<video>
-    <source src="assets/2024_2_26_tagging_demo.mp4" type="video/mp4"/>
-</video>
+![Demonstration of selecting tags and using controls to filter results](https://github.com/MarcusSchmidt4247/TagIt/assets/78465199/087808c3-c029-43e6-8a2d-40c30e402dc8)
 
 *Example photos courtesy of [Matthew Henry](https://www.shopify.com/stock-photos/@matthew_henry)*
-</p>
 
 *TagIt* is written in Java using [JavaFX](https://openjfx.io), [ControlsFX](https://github.com/controlsfx/controlsfx), and [ikonli](https://github.com/kordamp/ikonli) for the GUI; [SQLite](https://www.sqlite.org) for the database; and with [IntelliJ IDEA](https://www.jetbrains.com/idea) as the development environment.
 
