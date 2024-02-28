@@ -1,13 +1,13 @@
 Manifest-Version: 1.0
-Main-Class: com.example.tagger.TaggerLauncher
-Class-Path: javafx-base-21.jar javafx-graphics-21-mac-aarch64.jar javafx
- -controls-21-win.jar ikonli-javafx-12.3.1.jar javafx-fxml-21-mac-aarch6
- 4.jar ikonli-boxicons-pack-12.3.1.jar javafx-graphics-21-mac.jar javafx
- -controls-21-mac.jar javafx-controls-21-mac-aarch64.jar javafx-base-21-
- mac.jar javafx-base-21-mac-aarch64.jar javafx-media-22-ea+16-mac.jar sl
- f4j-api-1.7.36.jar javafx-controls-21.jar javafx-base-21-win.jar sqlite
- -jdbc-3.45.0.0.jar javafx-graphics-21.jar javafx-media-22-ea+16-mac-aar
- ch64.jar javafx-graphics-21-win.jar javafx-media-22-ea+16-win.jar javaf
- x-fxml-21-mac.jar javafx-fxml-21-win.jar controlsfx-11.1.2.jar ikonli-c
- ore-12.3.1.jar slf4j-simple-1.7.36.jar
+Main-Class: com.github.marcusschmidt4247.tagit.TaggerLauncher
+Class-Path: javafx-media-22-ea+16-win.jar javafx-graphics-21-mac.jar jav
+ afx-controls-21-win.jar controlsfx-11.1.2.jar slf4j-simple-1.7.36.jar j
+ avafx-base-21-mac-aarch64.jar javafx-controls-21-mac-aarch64.jar javafx
+ -controls-21.jar javafx-graphics-21-mac-aarch64.jar javafx-graphics-21-
+ win.jar javafx-fxml-21-mac-aarch64.jar javafx-base-21.jar javafx-media-
+ 22-ea+16-mac.jar ikonli-javafx-12.3.1.jar javafx-base-21-win.jar ikonli
+ -boxicons-pack-12.3.1.jar javafx-fxml-21-mac.jar javafx-fxml-21-win.jar
+  javafx-graphics-21.jar javafx-media-22-ea+16-mac-aarch64.jar sqlite-jd
+ bc-3.45.0.0.jar ikonli-core-12.3.1.jar javafx-base-21-mac.jar javafx-co
+ ntrols-21-mac.jar slf4j-api-1.7.36.jar
 

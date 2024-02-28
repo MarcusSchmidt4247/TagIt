@@ -1,4 +1,5 @@
-module com.example.tagger {
+module com.github.marcusschmidt4247.tagit {
+    requires java.base;
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.media;
@@ -7,14 +8,14 @@ module com.example.tagger {
     requires org.kordamp.ikonli.javafx;
     requires java.sql;
 
-    opens com.example.tagger to javafx.fxml;
-    exports com.example.tagger;
-    exports com.example.tagger.controllers;
-    opens com.example.tagger.controllers to javafx.fxml;
-    exports com.example.tagger.models;
-    opens com.example.tagger.models to javafx.fxml;
-    exports com.example.tagger.gui;
-    opens com.example.tagger.gui to javafx.fxml;
-    exports com.example.tagger.miscellaneous;
-    opens com.example.tagger.miscellaneous to javafx.fxml;
+    opens com.github.marcusschmidt4247.tagit to javafx.fxml;
+    exports com.github.marcusschmidt4247.tagit;
+    exports com.github.marcusschmidt4247.tagit.controllers;
+    opens com.github.marcusschmidt4247.tagit.controllers to javafx.fxml;
+    exports com.github.marcusschmidt4247.tagit.models;
+    opens com.github.marcusschmidt4247.tagit.models to javafx.fxml;
+    exports com.github.marcusschmidt4247.tagit.gui;
+    opens com.github.marcusschmidt4247.tagit.gui to javafx.fxml;
+    exports com.github.marcusschmidt4247.tagit.miscellaneous;
+    opens com.github.marcusschmidt4247.tagit.miscellaneous to javafx.fxml;
 }
