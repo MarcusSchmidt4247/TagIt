@@ -20,11 +20,13 @@ The goal of this project is to provide a free tool that is equally suitable for 
 
 ## Installation
 
-Download the platform-appropriate executable or JAR from the latest release on the [releases page](https://github.com/MarcusSchmidt4247/TagIt/releases).
+Download the platform-appropriate JAR file or executable from the latest release on the [releases page](https://github.com/MarcusSchmidt4247/TagIt/releases). To run a JAR file, a [Java runtime environment](https://www.java.com/en/) or [development kit](https://www.oracle.com/java/technologies/downloads/) (version 21+ recommended) is also required.
 
-The executable or JAR can be run from anywhere on your computer. When *TagIt* runs for the first time, it will automatically create a directory for its own use (managing the files you import) in the user's application folder (`/Users/[user]/Applications` on macOS and `C:\Users\[user]\AppData\Local\Programs` on Windows).
+When *TagIt* runs for the first time, it will automatically create a directory for its own use (managing the files you import) in the user's application folder (`/Users/[user]/Applications` on macOS and `C:\Users\[user]\AppData\Local\Programs` on Windows).
 
 ## How to Use
+
+To run from a JAR file, open the command line, navigate to the directory containing `tagit.jar` and its dependencies, and execute `java -jar tagit.jar`.
 
 The first window that opens when you run *TagIt* is the File Viewer, where you choose your search parameters and then view, edit, or delete the files that are returned by the search. Use the left and right arrow keys to move through the list of returned files.
 

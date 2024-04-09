@@ -26,6 +26,7 @@ public class IOManager
     private static String rootDirectory = null;
     public static String getRootDirectory() { return rootDirectory; }
 
+    private static String parentDirectory = null;
     private static String storageDirectory = null;
     private static String pathSeparator = null;
 
@@ -34,25 +35,38 @@ public class IOManager
      * to confirm that nothing has been deleted. */
     public static boolean verify()
     {
-        // Determine the platform-appropriate path for the root program directory
-        if (rootDirectory == null)
+        // Determine the platform-appropriate path for user program directories
+        if (parentDirectory == null)
         {
             String homePath = System.getProperty("user.home");
             if (System.getProperty("os.name").startsWith("Windows"))
-                rootDirectory = formatPath(homePath, "AppData", "Local", "Programs", "TagIt");
+                parentDirectory = formatPath(homePath, "AppData", "Local", "Programs");
             else
-                rootDirectory = formatPath(homePath, "Applications", "TagIt");
+                parentDirectory = formatPath(homePath, "Applications");
         }
+
+        // Create a path for this program's directory in its parent directory
+        if (rootDirectory == null)
+            rootDirectory = formatPath(parentDirectory, "TagIt");
 
         if (storageDirectory == null)
             storageDirectory = formatPath(rootDirectory, "Storage");
+
+        // Check whether the parent directory exists, and create it if not
+        File parent = new File(parentDirectory);
+        if (!parent.exists() && !parent.mkdir())
+        {
+            System.out.println("IOManager.verify: Parent directory doesn't exist and can't be created");
+            showError("User programs directory does not exist");
+            return false;
+        }
 
         // Check whether the root program directory exists, and create it if not
         File root = new File(rootDirectory);
         if (!root.exists() && !root.mkdir())
         {
             System.out.println("IOManager.verify: Root directory doesn't exist and can't be created");
-            showError("Program directory does not exist");
+            showError("Cannot create TagIt directory");
             return false;
         }
 

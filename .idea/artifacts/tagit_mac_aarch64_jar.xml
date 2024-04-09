@@ -1,0 +1,25 @@
+<component name="ArtifactManager">
+  <artifact name="tagit-mac-aarch64:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/tagit_mac_aarch64_jar</output-path>
+    <root id="root">
+      <element id="archive" name="tagit.jar">
+        <element id="module-output" name="tagit" />
+      </element>
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-fxml:mac-aarch64:21" />
+      <element id="library" level="project" name="Maven: org.kordamp.ikonli:ikonli-boxicons-pack:12.3.1" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-graphics:mac-aarch64:21" />
+      <element id="library" level="project" name="Maven: org.slf4j:slf4j-api:1.7.36" />
+      <element id="library" level="project" name="Maven: org.slf4j:slf4j-simple:1.7.36" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-graphics:21" />
+      <element id="library" level="project" name="Maven: org.kordamp.ikonli:ikonli-core:12.3.1" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-base:mac-aarch64:21" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-controls:mac-aarch64:21" />
+      <element id="library" level="project" name="Maven: org.controlsfx:controlsfx:11.1.2" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-base:21" />
+      <element id="library" level="project" name="Maven: org.kordamp.ikonli:ikonli-javafx:12.3.1" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-controls:21" />
+      <element id="library" level="project" name="Maven: org.openjfx:javafx-media:mac-aarch64:22-ea+16" />
+      <element id="library" level="project" name="Maven: org.xerial:sqlite-jdbc:3.45.0.0" />
+    </root>
+  </artifact>
+</component>

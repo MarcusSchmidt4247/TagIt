@@ -89,6 +89,8 @@ public class TaggerController
         sortChoiceBox.setOnAction(actionEvent -> getCurrentFiles());
 
         // Set the search criteria ChoiceBox to the first option by default and refresh the current files every time it's changed
+        criteriaChoiceBox.getItems().add("Any matching tag");
+        criteriaChoiceBox.getItems().add("All matching tags");
         criteriaChoiceBox.getSelectionModel().select(0);
         criteriaChoiceBox.setOnAction(actionEvent -> getCurrentFiles());
 
