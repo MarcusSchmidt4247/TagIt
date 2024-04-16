@@ -61,7 +61,6 @@ The `Import` button at the bottom-right of the window copies the current file in
 
 Development for this project is ongoing. Planned features include:
 - Support for a wider variety of file types
-- Support for multiple tagged directories with customizable locations
 - More options for how to manage tags and files
 - Saving and reloading search parameters
 - Exporting search results

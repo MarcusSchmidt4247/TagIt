@@ -83,7 +83,7 @@ public class TagEditorController
         String description = "All files tagged with this item will lose the tag, and all child tags will be deleted too. This action cannot be reversed.";
         if (IOManager.confirmAction("Delete Tag", "Are you sure you want to delete this tag?", description))
         {
-            if (tag.delete())
+            if (IOManager.deleteTag(tag))
                 ((Stage) nameField.getScene().getWindow()).close();
         }
     }

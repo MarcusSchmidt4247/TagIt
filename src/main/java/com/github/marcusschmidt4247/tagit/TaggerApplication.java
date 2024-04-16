@@ -17,34 +17,28 @@
 
 package com.github.marcusschmidt4247.tagit;
 
-import com.github.marcusschmidt4247.tagit.controllers.TaggerController;
-import com.github.marcusschmidt4247.tagit.models.TaggerModel;
+import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
-
-import java.io.IOException;
 
 public class TaggerApplication extends Application
 {
     @Override
-    public void start(Stage stage) throws IOException
+    public void start(Stage stage)
     {
+        // Verify the default directory
         if (IOManager.verify())
         {
-            TaggerModel taggerModel = new TaggerModel();
-
-            FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tagger-view.fxml"));
-            Scene scene = new Scene(fxmlLoader.load(), 850, 600);
-            TaggerController taggerController = fxmlLoader.getController();
-            taggerController.setModel(taggerModel);
-            scene.addEventFilter(KeyEvent.KEY_PRESSED, taggerController::keyEventHandler);
-
-            stage.setTitle("TagIt");
-            stage.setScene(scene);
-            stage.show();
+            // Attempt to retrieve, verify, and open the user's main directory
+            ManagedFolder mainFolder = Database.getMainFolder();
+            if (mainFolder != null && IOManager.verify(mainFolder.getFullPath()))
+                IOManager.openFolder(mainFolder);
+            else
+            {
+                // If unable to open the main directory, then open the default directory
+                System.out.println("TaggerApplication.start: Unable to open main window");
+                IOManager.openFolder();
+            }
         }
     }
 

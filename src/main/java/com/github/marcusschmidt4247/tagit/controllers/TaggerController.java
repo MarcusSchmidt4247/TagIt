@@ -107,59 +107,55 @@ public class TaggerController
         });
     }
 
-    public void setModel(TaggerModel taggerModel)
+    public void setDirectory(String directory)
     {
-        if (this.taggerModel == null)
+        taggerModel = new TaggerModel(directory);
+
+        mediaView.init();
+
+        tagTreeView.init(taggerModel.getTreeRoot());
+        tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
         {
-            this.taggerModel = taggerModel;
-            mediaView.init();
-
-            tagTreeView.init(taggerModel.getTreeRoot());
-            tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
+            Vector<TreeItem<String>> added = new Vector<>();
+            Vector<TreeItem<String>> removed = new Vector<>();
+            while (change.next())
             {
-                Vector<TreeItem<String>> added = new Vector<>();
-                Vector<TreeItem<String>> removed = new Vector<>();
-                while (change.next())
-                {
-                    added.addAll(change.getAddedSubList());
-                    removed.addAll(change.getRemoved());
-                }
-                tagTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
-                {
-                    // Unless both 'checked' and 'alt' are true, activate or deactivate the node according to 'checked'
-                    if (!(checked && alt))
-                        node.activateNode(checked);
-                });
+                added.addAll(change.getAddedSubList());
+                removed.addAll(change.getRemoved());
+            }
+            tagTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
+            {
+                // Unless both 'checked' and 'alt' are true, activate or deactivate the node according to 'checked'
+                if (!(checked && alt))
+                    node.activateNode(checked);
+            });
+            getCurrentFiles();
+        });
+
+        excludeTreeView.init(taggerModel.getTreeRoot());
+        excludeTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
+        {
+            Vector<TreeItem<String>> added = new Vector<>();
+            Vector<TreeItem<String>> removed = new Vector<>();
+            while (change.next())
+            {
+                added.addAll(change.getAddedSubList());
+                removed.addAll(change.getRemoved());
+            }
+            excludeTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
+            {
+                // Unless both 'checked' and 'alt' are true, exclude or stop excluding the node according to 'checked'
+                if (!(checked && alt))
+                    node.excludeNode(checked);
+            });
+            // Only update the current list of files if excluded tags are an enabled search criteria
+            if (excludeCheckBox.isSelected())
                 getCurrentFiles();
-            });
+        });
 
-            excludeTreeView.init(taggerModel.getTreeRoot());
-            excludeTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
-            {
-                Vector<TreeItem<String>> added = new Vector<>();
-                Vector<TreeItem<String>> removed = new Vector<>();
-                while (change.next())
-                {
-                    added.addAll(change.getAddedSubList());
-                    removed.addAll(change.getRemoved());
-                }
-                excludeTreeView.processCheckedDelta(added, removed, taggerModel.getTreeRoot(), (node, checked, alt) ->
-                {
-                    // Unless both 'checked' and 'alt' are true, exclude or stop excluding the node according to 'checked'
-                    if (!(checked && alt))
-                        node.excludeNode(checked);
-                });
-                // Only update the current list of files if excluded tags are an enabled search criteria
-                if (excludeCheckBox.isSelected())
-                    getCurrentFiles();
-            });
-
-            // Initialize and then hide the edit pane
-            editTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
-            onToggleEdit();
-        }
-        else
-            throw new IllegalStateException("Model can only be set once");
+        // Initialize and then hide the edit pane
+        editTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
+        onToggleEdit();
     }
 
     public void keyEventHandler(KeyEvent event)
@@ -170,6 +166,9 @@ public class TaggerController
         else if (event.getCode() == KeyCode.RIGHT)
             refreshContentPane(taggerModel.nextFile());
     }
+
+    @FXML
+    public void onManageFolders() { IOManager.manageFolders(); }
 
     @FXML
     public void onToggleEdit()
@@ -256,7 +255,7 @@ public class TaggerController
         SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), anyMatch, excluding, getSortMethod());
 
         // Select files that meet the search criteria and refresh the content pane
-        taggerModel.setFiles(Database.getTaggedFiles(searchCriteria));
+        taggerModel.setFiles(Database.getTaggedFiles(taggerModel.getDirectory(), searchCriteria));
         refreshContentPane(taggerModel.firstFile());
     }
 
@@ -275,7 +274,7 @@ public class TaggerController
     {
         if (fileName != null)
         {
-            String filePath = IOManager.getFilePath(fileName);
+            String filePath = IOManager.getFilePath(taggerModel.getDirectory(), fileName);
             if (fileName.toLowerCase().matches(".+[.](jpe?g|png)$"))
             {
                 try (FileInputStream input = new FileInputStream(filePath))

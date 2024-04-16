@@ -162,11 +162,21 @@ public class TagNode
             return parent.get().getRoot();
     }
 
+    private String directory = null;
+    public String getDirectory()
+    {
+        if (isRoot())
+            return directory;
+        else
+            return getRoot().getDirectory();
+    }
+
     // Root node constructor
-    public TagNode()
+    public TagNode(String directory)
     {
         parent.set(null);
         tag = new SimpleStringProperty("root");
+        this.directory = directory;
     }
 
     // General constructor (should not be used for the root node)
@@ -267,72 +277,5 @@ public class TagNode
         getChildren().forEach(child -> idList.append(child.getSubtreeIds()).append(','));
         idList.deleteCharAt(idList.length()-1);
         return idList.toString();
-    }
-
-    public boolean delete()
-    {
-        // Delete this tag's children first, and halt the process if deleting any of them is unsuccessful
-        if (!children.isEmpty())
-        {
-            for (int i = children.size() - 1; i >= 0; i--)
-            {
-                if (!children.get(i).delete())
-                    return false;
-            }
-        }
-
-        // Before deleting this tag, check whether there are any files that will be left untagged without it
-        boolean proceed = false;
-        Vector<String> orphanedFiles = Database.getUniqueFiles(this);
-        if (orphanedFiles.isEmpty())
-            proceed = true;
-        else
-        {
-            // If there are files that will be orphaned, the user must choose to cancel, delete the files, or re-tag them
-            Alert warning = new Alert(Alert.AlertType.WARNING);
-            warning.setTitle("Orphaned Files");
-            warning.setHeaderText(String.format("\"%s\" is the only tag for %d files.", tag.get(), orphanedFiles.size()));
-            warning.setContentText("These files will be inaccessible without at least one tag. They must either be deleted or moved to another tag.");
-            // Get rid of the default button and add three custom  buttons with the appropriate choices
-            warning.getButtonTypes().removeFirst();
-            warning.getButtonTypes().add(new ButtonType("Cancel", ButtonBar.ButtonData.RIGHT));
-            ButtonType deleteButton = new ButtonType("Delete Files", ButtonBar.ButtonData.RIGHT);
-            warning.getButtonTypes().add(deleteButton);
-            ButtonType newTagButton = new ButtonType("Select Tag", ButtonBar.ButtonData.RIGHT);
-            warning.getButtonTypes().add(newTagButton);
-            // Set the button to select a new tag for these files as the default button
-            ((Button) warning.getDialogPane().lookupButton(newTagButton)).setDefaultButton(true);
-            // Show the dialog and record the user's choice
-            warning.showAndWait();
-
-            if (warning.getResult() == deleteButton)
-            {
-                orphanedFiles.forEach(IOManager::deleteFile);
-                proceed = true;
-            }
-            else if (warning.getResult() == newTagButton)
-            {
-                // If the user chose to re-tag the files, open a tag selector window and re-tag the files in the database with the user's selection
-                TagNode selection = IOManager.selectTag(getRoot(), this);
-                if (selection != null)
-                {
-                    for (String orphan : orphanedFiles)
-                    {
-                        Database.deleteFileTag(orphan, this);
-                        Database.addFileTag(orphan, selection);
-                    }
-                    proceed = true;
-                }
-            }
-        }
-
-        // If there was no problem with orphaned files or if the user resolved the problem, delete this tag
-        if (proceed)
-        {
-            Database.deleteTag(this);
-            if (parent.get() != null)
-                parent.get().removeChild(this);
-        }
-        return proceed;
     }
 }

@@ -5,8 +5,10 @@
 
 package com.github.marcusschmidt4247.tagit;
 
+import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.SearchCriteria;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.sql.*;
@@ -17,11 +19,13 @@ public class Database
     private static final String NAME = "database.db";
     public static String getName() { return NAME; }
 
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
 
-    public static boolean createTables()
+    private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0)";
+
+    public static boolean createTables(String directory)
     {
-        try (Connection connection = connect(false))
+        try (Connection connection = connect(directory, false))
         {
             // If successful, create the database tables
             String fileSchema = "CREATE TABLE File(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE, created INTEGER NOT NULL)";
@@ -42,6 +46,7 @@ public class Database
             statement.execute(tagSchema);
             statement.execute(fileTagsSchema);
             statement.execute(tagParentageSchema);
+            statement.execute(FOLDERS_SCHEMA);
             statement.execute(databaseInfoSchema);
             // Insert the current version number into the DatabaseInfo table
             String sql = String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION);
@@ -56,19 +61,39 @@ public class Database
         }
     }
 
-    public static boolean isUpToDate()
+    public static boolean isUpToDate(String directory)
     {
         boolean upToDate = false;
-        try (Connection connection = connect())
+        try (Connection connection = connect(directory))
         {
             Statement statement = connection.createStatement();
             ResultSet result = statement.executeQuery("SELECT version FROM DatabaseInfo");
             if (result.next())
             {
                 int version = result.getInt(1);
-                if (version == VERSION)
-                    upToDate = true;
-                else
+                switch (version)
+                {
+                    case 1:
+                        System.out.println("Updating database from version 1 to 2");
+                        try
+                        {
+                            // Create the Folders table
+                            statement.execute(FOLDERS_SCHEMA);
+                            // If this is the default directory's database, which tracks all managed folders, then insert the default value to the Folders table
+                            if (directory.equals(IOManager.getDefaultDirectory()))
+                                createManagedFolder(new ManagedFolder(IOManager.getDefaultDirectoryName(), IOManager.getDefaultDirectoryLocation(), true));
+                            statement.executeUpdate("UPDATE DatabaseInfo SET version=2");
+                        }
+                        catch (SQLException e)
+                        {
+                            System.out.println(e.toString());
+                            break;
+                        }
+                    case 2:
+                        upToDate = true;
+                }
+
+                if (!upToDate)
                     System.out.printf("Database.isUpToDate: Incompatible database (%d in file, %d is required)", version, VERSION);
             }
             else
@@ -83,9 +108,9 @@ public class Database
     // Save a newly created TagNode to the database
     public static void addTag(TagNode tag)
     {
-        try (Connection connection = connect())
+        try (Connection connection = connect(tag.getDirectory()))
         {
-            String sql = String.format("INSERT INTO Tag(name) VALUES(\"%s\")", tag.getTag());
+            String sql = String.format("INSERT INTO Tag(name) VALUES('%s')", tag.getTag());
             Statement statement = connection.createStatement();
             statement.execute("PRAGMA foreign_keys = ON");
             statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
@@ -113,7 +138,7 @@ public class Database
     public static void getRootTags(TagNode root, ObservableList<TagNode> tags)
     {
         tags.clear();
-        try (Connection connection = connect())
+        try (Connection connection = connect(root.getDirectory()))
         {
             String sql = "SELECT name, id FROM Tag WHERE id NOT IN (SELECT child_id FROM TagParentage) ORDER BY name ASC";
             Statement statement = connection.createStatement();
@@ -132,7 +157,7 @@ public class Database
     public static void getChildTags(TagNode parent, ObservableList<TagNode> children)
     {
         children.clear();
-        try (Connection connection = connect())
+        try (Connection connection = connect(parent.getDirectory()))
         {
             String sql = "SELECT name, id FROM Tag JOIN TagParentage ON id=child_id WHERE parent_id=? ORDER BY name ASC";
             PreparedStatement statement = connection.prepareStatement(sql);
@@ -154,7 +179,7 @@ public class Database
     // Return whether the provided tag has any children tags
     public static boolean isLeafTag(TagNode tag)
     {
-        try (Connection connection = connect())
+        try (Connection connection = connect(tag.getDirectory()))
         {
             String sql = String.format("SELECT count(parent_id) FROM TagParentage WHERE parent_id=%d", tag.getId());
             Statement statement = connection.createStatement();
@@ -174,9 +199,9 @@ public class Database
         // A tag with the ID -1 has not been written to the database yet, so it cannot be updated
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
-                String sql = String.format("UPDATE Tag SET name=\"%s\" WHERE id=%d", tag.getTag(), tag.getId());
+                String sql = String.format("UPDATE Tag SET name='%s' WHERE id=%d", tag.getTag(), tag.getId());
                 Statement statement = connection.createStatement();
                 statement.execute(sql);
                 statement.close();
@@ -195,7 +220,7 @@ public class Database
         // Make sure the TagNode is not the tree's root rather than a tag in and of itself, in which case there would be nothing to update
         if (!tag.isRoot() && tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -231,7 +256,7 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -252,11 +277,11 @@ public class Database
     {
         Vector<TagNode> tags = new Vector<>();
 
-        try (Connection connection = connect())
+        try (Connection connection = connect(root.getDirectory()))
         {
             // Get this file's ID
             Statement statement = connection.createStatement();
-            String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", fileName);
+            String sql = String.format("SELECT id FROM File WHERE name='%s'", fileName);
             ResultSet results = statement.executeQuery(sql);
             if (results.next())
             {
@@ -272,7 +297,7 @@ public class Database
                 // For each tag ID, reconstruct its lineage and follow it to the equivalent TagNode
                 for (int id : tagIds)
                 {
-                    Vector<Integer> lineage = getTagLineage(id);
+                    Vector<Integer> lineage = getTagLineage(root.getDirectory(), id);
                     TagNode tag = root.findNode(lineage);
                     if (tag != null)
                         tags.add(tag);
@@ -292,11 +317,11 @@ public class Database
         return tags;
     }
 
-    public static Vector<Integer> getTagLineage(int id)
+    public static Vector<Integer> getTagLineage(String directory, int id)
     {
         Vector<Integer> lineage = new Vector<>();
         lineage.add(id);
-        try (Connection connection = connect())
+        try (Connection connection = connect(directory))
         {
             int currentId = id;
             Statement statement = connection.createStatement();
@@ -329,7 +354,7 @@ public class Database
 
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 String sql = String.format("SELECT DISTINCT name FROM File JOIN FileTags ON id=file_id WHERE tag_id=%d", tag.getId());
 
@@ -351,12 +376,12 @@ public class Database
     }
 
     // Return the list of names of every file in the managed directory that meets the tag criteria
-    public static Vector<String> getTaggedFiles(SearchCriteria searchCriteria)
+    public static Vector<String> getTaggedFiles(String directory, SearchCriteria searchCriteria)
     {
         Vector<String> files = new Vector<>();
         if (!searchCriteria.getIncludeAny().isEmpty() || !searchCriteria.getIncludeAll().isEmpty())
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(directory))
             {
                 String table = "File";
                 String sql;
@@ -439,11 +464,11 @@ public class Database
     }
 
     // Save a newly imported file to the database
-    public static void saveFile(String fileName, long fileCreatedMillis, Vector<TagNode> tags)
+    public static void saveFile(String directory, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
     {
         if (!tags.isEmpty())
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(directory))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
@@ -459,7 +484,7 @@ public class Database
                 }
 
                 // Insert the file name and time created into the File table
-                String sql = String.format("INSERT INTO File(name, created) VALUES(\"%s\", %d)", fileName, created);
+                String sql = String.format("INSERT INTO File(name, created) VALUES('%s', %d)", fileName, created);
                 statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
                 // Get the ID assigned to this file by the database and insert a row with it and each of its tag's IDs into the FileTags table
@@ -492,12 +517,12 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
 
-                String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", file);
+                String sql = String.format("SELECT id FROM File WHERE name='%s'", file);
                 ResultSet results = statement.executeQuery(sql);
                 if (results.next())
                 {
@@ -524,12 +549,12 @@ public class Database
     {
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 Statement statement = connection.createStatement();
                 statement.execute("PRAGMA foreign_keys = ON");
 
-                String sql = String.format("SELECT id FROM File WHERE name=\"%s\"", file);
+                String sql = String.format("SELECT id FROM File WHERE name='%s'", file);
                 ResultSet results = statement.executeQuery(sql);
                 if (results.next())
                 {
@@ -558,7 +583,7 @@ public class Database
 
         if (tag.getId() != -1)
         {
-            try (Connection connection = connect())
+            try (Connection connection = connect(tag.getDirectory()))
             {
                 String sql = "SELECT name FROM File JOIN FileTags ON id=FileTags.file_id " +
                         String.format("JOIN (SELECT file_id FROM FileTags WHERE tag_id=%d) as ids ON id=ids.file_id ", tag.getId()) +
@@ -581,11 +606,11 @@ public class Database
         return files;
     }
 
-    public static boolean renameFileInDatabase(String oldName, String newName)
+    public static boolean renameFileInDatabase(String directory, String oldName, String newName)
     {
-        try (Connection connection = connect())
+        try (Connection connection = connect(directory))
         {
-            String sql = String.format("UPDATE File SET name=\"%s\" WHERE name=\"%s\"", newName, oldName);
+            String sql = String.format("UPDATE File SET name='%s' WHERE name='%s'", newName, oldName);
             Statement statement = connection.createStatement();
             statement.execute(sql);
             statement.close();
@@ -599,13 +624,13 @@ public class Database
         }
     }
 
-    public static void deleteFileFromDatabase(String fileName)
+    public static void deleteFileFromDatabase(String directory, String fileName)
     {
-        try (Connection connection = connect())
+        try (Connection connection = connect(directory))
         {
             Statement statement = connection.createStatement();
             statement.execute("PRAGMA foreign_keys = ON");
-            statement.execute(String.format("DELETE FROM File WHERE name=\"%s\"", fileName));
+            statement.execute(String.format("DELETE FROM File WHERE name='%s'", fileName));
             statement.close();
         }
         catch (SQLException e)
@@ -614,24 +639,150 @@ public class Database
         }
     }
 
-    private static Connection connect() throws SQLException { return connect(true); }
+    public static ManagedFolder getMainFolder()
+    {
+        ManagedFolder mainFolder = null;
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+            ResultSet result = statement.executeQuery("SELECT * FROM Folders WHERE main=1");
+            if (result.next())
+            {
+                String name = result.getString(1);
+                String path = result.getString(2);
+                mainFolder = new ManagedFolder(name, path, true);
+            }
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return mainFolder;
+    }
 
-    private static Connection connect(boolean retry) throws SQLException
+    public static void updateMainFolder(ManagedFolder folder)
+    {
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+            String sql = String.format("UPDATE Folders SET main=%d where name='%s'", folder.isMainFolder() ? 1 : 0, folder.getName());
+            statement.execute(sql);
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ObservableList<ManagedFolder> getManagedFolders()
+    {
+        ObservableList<ManagedFolder> managedFolders = FXCollections.observableArrayList();
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery("SELECT * FROM Folders ORDER BY main DESC, name ASC");
+            while (results.next())
+            {
+                String name = results.getString(1);
+                String location = results.getString(2);
+                boolean mainFolder = results.getBoolean(3);
+                managedFolders.add(new ManagedFolder(name, location, mainFolder));
+            }
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return managedFolders;
+    }
+
+    public static void createManagedFolder(ManagedFolder newFolder)
+    {
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+            String sql = String.format("INSERT INTO Folders VALUES ('%s', '%s', %d)", newFolder.getName(), newFolder.getLocation(), newFolder.isMainFolder() ? 1 : 0);
+            statement.execute(sql);
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void deleteManagedFolder(ManagedFolder managedFolder)
+    {
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+            String sql = String.format("DELETE FROM Folders WHERE name='%s'", managedFolder.getName());
+            statement.execute(sql);
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void updateManagedFolder(ManagedFolder oldFolder, ManagedFolder newFolder)
+    {
+        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        {
+            Statement statement = connection.createStatement();
+
+            // Begin building the SQL statement by checking which properties have changed and adding their new value to the update
+            StringBuilder sql = new StringBuilder("UPDATE Folders SET ");
+            if (!oldFolder.getName().equals(newFolder.getName()))
+                sql.append(String.format("name='%s',", newFolder.getName()));
+            if (!oldFolder.getLocation().equals(newFolder.getLocation()))
+                sql.append(String.format("location='%s',", newFolder.getLocation()));
+            if (oldFolder.isMainFolder() != newFolder.isMainFolder())
+                sql.append(String.format("main=%d,", newFolder.isMainFolder() ? 1 : 0));
+
+            // If none of the ManagedFolder properties need to be updated, exit the method early
+            if (sql.charAt(sql.length()-1) != ',')
+            {
+                System.out.println("Database.updateManagedFolder: oldFolder = newFolder");
+                statement.close();
+                return;
+            }
+
+            // Delete the trailing comma from the list of properties to update and finish building the SQL statement
+            sql.deleteCharAt(sql.length()-1);
+            sql.append(String.format(" WHERE name='%s'", oldFolder.getName()));
+
+            statement.execute(sql.toString());
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Connection connect(String directory) throws SQLException { return connect(directory, true); }
+
+    private static Connection connect(String directory, boolean retry) throws SQLException
     {
         try
         {
             // Attempt to return a connection to the database file in the program's root directory
-            String url = IOManager.formatPath(String.format("jdbc:sqlite:%s", IOManager.getRootDirectory()), NAME);
+            String url = IOManager.formatPath(String.format("jdbc:sqlite:%s", directory), NAME);
             return DriverManager.getConnection(url);
         }
         catch (SQLException exception)
         {
             // If something went wrong and a retry is permitted, re-verify the program directories and database file before trying again
-            if (retry && IOManager.verify())
+            if (retry && IOManager.verify(directory))
             {
                 System.out.printf("Database.connect: %s\n", exception);
                 System.out.println("Database.connect: Verified files. Retrying connection...");
-                return connect(false);
+                return connect(directory, false);
             }
             else
                 throw exception;
