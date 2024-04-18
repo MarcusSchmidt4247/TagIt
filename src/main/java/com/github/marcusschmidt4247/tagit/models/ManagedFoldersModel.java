@@ -25,20 +25,14 @@ public class ManagedFoldersModel
         Database.createManagedFolder(newFolder);
     }
 
-    // Update the provided folder with the values of the updatedFolder argument
-    public void updateFolder(ManagedFolder folder, ManagedFolder updatedFolder)
+    // Update the provided folder with the values of the folderDelta argument
+    public void updateFolder(ManagedFolder folder, ManagedFolder folderDelta)
     {
-        if (folder.isMainFolder() != updatedFolder.isMainFolder())
+        if (folderDelta.isMainFolder() != null && folderDelta.isMainFolder())
             resetMainFolder();
 
-        Database.updateManagedFolder(folder, updatedFolder);
-
-        if (!folder.getName().equals(updatedFolder.getName()))
-            folder.setName(updatedFolder.getName());
-        if (!folder.getLocation().equals(updatedFolder.getLocation()))
-            folder.setLocation(updatedFolder.getLocation());
-        if (folder.isMainFolder() != updatedFolder.isMainFolder())
-            folder.setMainFolder(updatedFolder.isMainFolder());
+        folder.set(folderDelta);
+        Database.updateManagedFolder(folderDelta);
     }
 
     // Check if a folder with the given (unique) name exists
@@ -52,7 +46,7 @@ public class ManagedFoldersModel
         return false;
     }
 
-    // Find the main folder in the list of managed folders and set it to no longer be the main folder
+    // Find the main folder in the list of managed folders and set it to no longer be the main folder (database is updated elsewhere)
     private void resetMainFolder()
     {
         for (ManagedFolder folder : managedFolders)
@@ -60,7 +54,6 @@ public class ManagedFoldersModel
             if (folder.isMainFolder())
             {
                 folder.setMainFolder(false);
-                Database.updateMainFolder(folder);
                 break;
             }
         }

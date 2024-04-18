@@ -10,6 +10,14 @@ import javafx.beans.property.*;
 
 public class ManagedFolder
 {
+    private int id;
+    public int getId() { return id; }
+    public void setId(int id)
+    {
+        if (this.id == -1)
+            this.id = id;
+    }
+
     private final StringProperty name;
     public String getName() { return name.get(); }
     public StringProperty nameProperty() { return name; }
@@ -23,28 +31,54 @@ public class ManagedFolder
 
     public String getFullPath() { return IOManager.formatPath(location.get(), name.get()); }
 
-    private final BooleanProperty mainFolder;
-    public boolean isMainFolder() { return mainFolder.get(); }
-    public void setMainFolder(boolean mainFolder) { this.mainFolder.set(mainFolder); }
+    private BooleanProperty mainFolder = null;
+    public Boolean isMainFolder() { return (mainFolder != null) ? mainFolder.get() : null; }
+    public void setMainFolder(boolean mainFolder)
+    {
+        if (this.mainFolder == null)
+        {
+            this.mainFolder = new SimpleBooleanProperty();
+
+            mainFolderStringProperty = new SimpleStringProperty();
+            mainFolderStringProperty.set(getMainFolderString(mainFolder));
+            this.mainFolder.addListener((observableValue, aBoolean, t1) -> mainFolderStringProperty.set(getMainFolderString(observableValue.getValue())));
+        }
+
+        this.mainFolder.set(mainFolder);
+    }
 
     // A string representation of the boolean 'mainFolder' property
-    SimpleStringProperty mainFolderStringProperty;
+    private SimpleStringProperty mainFolderStringProperty = null;
     public StringProperty mainFolderProperty() { return mainFolderStringProperty; }
 
-    public ManagedFolder(String name, String location, boolean mainFolder)
+    public ManagedFolder() { this(-1, null, null, null); }
+
+    public ManagedFolder(String name, String location, boolean mainFolder) { this(-1, name, location, mainFolder); }
+
+    public ManagedFolder(int id, String name, String location, Boolean mainFolder)
     {
+        this.id = id;
+
         this.name = new SimpleStringProperty();
-        this.name.setValue((name != null) ? name : "Main");
+        this.name.setValue(name);
 
         this.location = new SimpleStringProperty();
-        this.location.set((location != null) ? location : "");
+        this.location.set(location);
 
-        this.mainFolder = new SimpleBooleanProperty();
-        this.mainFolder.set(mainFolder);
+        if (mainFolder != null)
+            setMainFolder(mainFolder);
+    }
 
-        mainFolderStringProperty = new SimpleStringProperty();
-        mainFolderStringProperty.set(getMainFolderString(mainFolder));
-        this.mainFolder.addListener((observableValue, aBoolean, t1) -> mainFolderStringProperty.set(getMainFolderString(observableValue.getValue())));
+    public boolean equals(ManagedFolder other) { return id == other.getId(); }
+
+    public void set(ManagedFolder delta)
+    {
+        if (delta.getName() != null)
+            name.set(delta.getName());
+        if (delta.getLocation() != null)
+            location.set(delta.getLocation());
+        if (delta.isMainFolder() != null)
+            mainFolder.set(delta.isMainFolder());
     }
 
     private String getMainFolderString(boolean main) { return main ? "yes" : ""; }

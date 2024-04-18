@@ -21,7 +21,7 @@ public class Database
 
     private static final int VERSION = 2;
 
-    private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0)";
+    private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0)";
 
     public static boolean createTables(String directory)
     {
@@ -104,6 +104,10 @@ public class Database
 
         return upToDate;
     }
+
+    //**************************
+    // Methods related to tags *
+    //**************************
 
     // Save a newly created TagNode to the database
     public static void addTag(TagNode tag)
@@ -346,6 +350,10 @@ public class Database
         }
         return lineage;
     }
+
+    //***************************
+    // Methods related to files *
+    //***************************
 
     // Return the list of names of every file in the managed directory that is associated with the provided tag
     public static Vector<String> getTaggedFiles(TagNode tag)
@@ -639,6 +647,10 @@ public class Database
         }
     }
 
+    //*************************************
+    // Methods related to managed folders *
+    //*************************************
+
     public static ManagedFolder getMainFolder()
     {
         ManagedFolder mainFolder = null;
@@ -648,9 +660,10 @@ public class Database
             ResultSet result = statement.executeQuery("SELECT * FROM Folders WHERE main=1");
             if (result.next())
             {
-                String name = result.getString(1);
-                String path = result.getString(2);
-                mainFolder = new ManagedFolder(name, path, true);
+                int id = result.getInt(1);
+                String name = result.getString(2);
+                String path = result.getString(3);
+                mainFolder = new ManagedFolder(id, name, path, true);
             }
             statement.close();
         }
@@ -659,21 +672,6 @@ public class Database
             throw new RuntimeException(e);
         }
         return mainFolder;
-    }
-
-    public static void updateMainFolder(ManagedFolder folder)
-    {
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
-        {
-            Statement statement = connection.createStatement();
-            String sql = String.format("UPDATE Folders SET main=%d where name='%s'", folder.isMainFolder() ? 1 : 0, folder.getName());
-            statement.execute(sql);
-            statement.close();
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException(e);
-        }
     }
 
     public static ObservableList<ManagedFolder> getManagedFolders()
@@ -685,10 +683,11 @@ public class Database
             ResultSet results = statement.executeQuery("SELECT * FROM Folders ORDER BY main DESC, name ASC");
             while (results.next())
             {
-                String name = results.getString(1);
-                String location = results.getString(2);
-                boolean mainFolder = results.getBoolean(3);
-                managedFolders.add(new ManagedFolder(name, location, mainFolder));
+                int id = results.getInt(1);
+                String name = results.getString(2);
+                String location = results.getString(3);
+                boolean mainFolder = results.getBoolean(4);
+                managedFolders.add(new ManagedFolder(id, name, location, mainFolder));
             }
             statement.close();
         }
@@ -704,8 +703,20 @@ public class Database
         try (Connection connection = connect(IOManager.getDefaultDirectory()))
         {
             Statement statement = connection.createStatement();
-            String sql = String.format("INSERT INTO Folders VALUES ('%s', '%s', %d)", newFolder.getName(), newFolder.getLocation(), newFolder.isMainFolder() ? 1 : 0);
-            statement.execute(sql);
+
+            if (newFolder.isMainFolder())
+                statement.execute("UPDATE Folders SET main=0");
+
+            String sql = String.format("INSERT INTO Folders (name, location, main) VALUES ('%s', '%s', %d)", newFolder.getName(), newFolder.getLocation(), newFolder.isMainFolder() ? 1 : 0);
+            statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
+
+            // Get this folder's ID assigned by the database and assign it to the ManagedFolder object
+            ResultSet keys = statement.getGeneratedKeys();
+            if (keys.next())
+                newFolder.setId(keys.getInt(1));
+            else
+                System.out.println("Database.createManagedFolder: Unable to retrieve folder ID");
+
             statement.close();
         }
         catch (SQLException e)
@@ -719,7 +730,7 @@ public class Database
         try (Connection connection = connect(IOManager.getDefaultDirectory()))
         {
             Statement statement = connection.createStatement();
-            String sql = String.format("DELETE FROM Folders WHERE name='%s'", managedFolder.getName());
+            String sql = String.format("DELETE FROM Folders WHERE id=%d", managedFolder.getId());
             statement.execute(sql);
             statement.close();
         }
@@ -729,32 +740,40 @@ public class Database
         }
     }
 
-    public static void updateManagedFolder(ManagedFolder oldFolder, ManagedFolder newFolder)
+    // Update a row in the Folders table with the properties in 'delta' that are not null (folder ID must be assigned to 'delta')
+    public static void updateManagedFolder(ManagedFolder delta)
     {
+        if (delta.getId() == -1)
+        {
+            System.out.println("Database.updateManagedFolder: Cannot update without folder ID assigned to the delta");
+            return;
+        }
+        else if (delta.getName() == null && delta.getLocation() == null && delta.isMainFolder() == null)
+        {
+            System.out.println("Database.updateManagedFolder: Folder delta has no values assigned");
+            return;
+        }
+
         try (Connection connection = connect(IOManager.getDefaultDirectory()))
         {
             Statement statement = connection.createStatement();
 
+            // If the delta makes this folder the main folder, reset the current main folder in the database
+            if (delta.isMainFolder() != null && delta.isMainFolder())
+                statement.execute("UPDATE Folders SET main=0 WHERE main=1");
+
             // Begin building the SQL statement by checking which properties have changed and adding their new value to the update
             StringBuilder sql = new StringBuilder("UPDATE Folders SET ");
-            if (!oldFolder.getName().equals(newFolder.getName()))
-                sql.append(String.format("name='%s',", newFolder.getName()));
-            if (!oldFolder.getLocation().equals(newFolder.getLocation()))
-                sql.append(String.format("location='%s',", newFolder.getLocation()));
-            if (oldFolder.isMainFolder() != newFolder.isMainFolder())
-                sql.append(String.format("main=%d,", newFolder.isMainFolder() ? 1 : 0));
-
-            // If none of the ManagedFolder properties need to be updated, exit the method early
-            if (sql.charAt(sql.length()-1) != ',')
-            {
-                System.out.println("Database.updateManagedFolder: oldFolder = newFolder");
-                statement.close();
-                return;
-            }
+            if (delta.getName() != null)
+                sql.append(String.format("name='%s',", delta.getName()));
+            if (delta.getLocation() != null)
+                sql.append(String.format("location='%s',", delta.getLocation()));
+            if (delta.isMainFolder() != null)
+                sql.append(String.format("main=%d,", delta.isMainFolder() ? 1 : 0));
 
             // Delete the trailing comma from the list of properties to update and finish building the SQL statement
             sql.deleteCharAt(sql.length()-1);
-            sql.append(String.format(" WHERE name='%s'", oldFolder.getName()));
+            sql.append(String.format(" WHERE id=%d", delta.getId()));
 
             statement.execute(sql.toString());
             statement.close();
@@ -764,6 +783,10 @@ public class Database
             throw new RuntimeException(e);
         }
     }
+
+    //**************************************************
+    // Private methods to create a database connection *
+    //**************************************************
 
     private static Connection connect(String directory) throws SQLException { return connect(directory, true); }
 
