@@ -14,6 +14,7 @@
     <padding>
         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
     </padding>
+    <MenuBar useSystemMenuBar="true"/>
     <AnchorPane VBox.vgrow="ALWAYS">
         <TableView fx:id="folderTable" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0">
             <columns>

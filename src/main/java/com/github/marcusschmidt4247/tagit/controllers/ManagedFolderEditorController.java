@@ -131,26 +131,36 @@ public class ManagedFolderEditorController
             File directory = new File(IOManager.formatPath(locationLabel.getText(), nameField.getText()));
             if (folder == null && directory.exists())
                 IOManager.showError("A folder with this name already exists at this location");
-            else if (!IOManager.verify(directory.getAbsolutePath()))
-                IOManager.showError("Failed to verify folder at this location");
+            else if (folder == null)
+            {
+                // If a new folder is being created, the chosen directory must be verified before the ManagedFolder object is created
+                if (IOManager.verify(directory.getAbsolutePath()))
+                {
+                    model.addFolder(new ManagedFolder(nameField.getText(), locationLabel.getText(), mainCheck.isSelected()));
+                    ((Stage) nameField.getScene().getWindow()).close();
+                }
+                else
+                {
+                    System.out.printf("ManagedFolderEditorController.onSaveButton: Unable to verify directory \"%s\"\n", directory.getAbsolutePath());
+                    IOManager.showError("Failed to create managed folder at this location");
+                }
+            }
             else
             {
-                if (folder == null)
-                    model.addFolder(new ManagedFolder(nameField.getText(), locationLabel.getText(), mainCheck.isSelected()));
-                else if (editedProperties[0] || editedProperties[1] || editedProperties[2])
+                // If an existing folder is being edited, one of its properties must have been edited to create a delta object and update the existing object with it
+                if (editedProperties[0] || editedProperties[1] || editedProperties[2])
                 {
-                    ManagedFolder update = new ManagedFolder();
-                    update.setId(folder.getId());
+                    ManagedFolder delta = new ManagedFolder();
+                    delta.setId(folder.getId());
                     if (editedProperties[0])
-                        update.setName(nameField.getText());
+                        delta.setName(nameField.getText());
                     if (editedProperties[1])
-                        update.setLocation(locationLabel.getText());
+                        delta.setLocation(locationLabel.getText());
                     if (editedProperties[2])
-                        update.setMainFolder(mainCheck.isSelected());
+                        delta.setMainFolder(mainCheck.isSelected());
 
-                    model.updateFolder(folder, update);
+                    model.updateFolder(folder, delta);
                 }
-
                 ((Stage) nameField.getScene().getWindow()).close();
             }
         }

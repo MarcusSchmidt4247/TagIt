@@ -6,14 +6,16 @@
 package com.github.marcusschmidt4247.tagit.models;
 
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 
 import java.util.Vector;
 
 public class TaggerModel
 {
-    private final String directory;
-    public String getDirectory() { return directory; }
+    private final ManagedFolder folder;
+    public ManagedFolder getFolder() { return folder; }
+    public String getPath() { return folder.getFullPath(); }
 
     private final TagNode tagTreeRoot;
     public TagNode getTreeRoot() { return tagTreeRoot; }
@@ -21,10 +23,10 @@ public class TaggerModel
     private final Vector<String> files = new Vector<>();
     private int currFileIndex = -1;
 
-    public TaggerModel(String directory)
+    public TaggerModel(ManagedFolder folder)
     {
-        this.directory = directory;
-        tagTreeRoot = new TagNode(directory);
+        this.folder = folder;
+        tagTreeRoot = new TagNode(folder);
     }
 
     public String firstFile()
@@ -84,7 +86,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            boolean successful = IOManager.renameFile(directory, files.get(currFileIndex), name);
+            boolean successful = IOManager.renameFile(folder.getFullPath(), files.get(currFileIndex), name);
             if (successful)
                 files.set(currFileIndex, name);
         }
@@ -94,7 +96,7 @@ public class TaggerModel
     {
         if (!files.isEmpty() && currFileIndex < files.size())
         {
-            IOManager.deleteFile(directory, files.get(currFileIndex));
+            IOManager.deleteFile(folder.getFullPath(), files.get(currFileIndex));
             files.removeElementAt(currFileIndex);
 
             if (currFileIndex >= files.size())

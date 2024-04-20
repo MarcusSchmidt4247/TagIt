@@ -27,6 +27,7 @@ import javafx.stage.Window;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.util.Vector;
 
 public class IOManager
@@ -190,26 +191,23 @@ public class IOManager
     }
 
     // Open a new main window for the default managed folder
-    public static void openFolder() { openFolder(DEFAULT_DIRECTORY_NAME, getDefaultDirectory(), new Stage());}
+    public static void openFolder(Stage stage) { openFolder(new ManagedFolder(DEFAULT_DIRECTORY_NAME, getDefaultDirectoryLocation(), false), stage);}
 
     // Open a new main window for the provided managed folder
     public static void openFolder(ManagedFolder folder) { openFolder(folder, new Stage()); }
 
     // Open the provided managed folder onto the given stage
-    public static void openFolder(ManagedFolder folder, Stage stage) { openFolder(folder.getName(), folder.getFullPath(), stage); }
-
-    // Open the managed folder with the provided directory path onto the given stage
-    private static void openFolder(String name, String directory, Stage stage)
+    public static void openFolder(ManagedFolder folder, Stage stage)
     {
         try
         {
             FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tagger-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load(), 850, 600);
             TaggerController taggerController = fxmlLoader.getController();
-            taggerController.setDirectory(directory);
+            taggerController.setFolder(folder);
             scene.addEventFilter(KeyEvent.KEY_PRESSED, taggerController::keyEventHandler);
 
-            stage.setTitle(String.format("TagIt - %s", name));
+            stage.titleProperty().bind(folder.nameProperty());
             stage.setScene(scene);
             stage.show();
         }
@@ -377,25 +375,6 @@ public class IOManager
         return proceed;
     }
 
-    public static boolean deleteManagedFolder(ManagedFoldersModel model, ManagedFolder folder)
-    {
-        if (!folder.getFullPath().equals(IOManager.getDefaultDirectory()))
-        {
-            String header = String.format("Are you sure you want to delete the folder \"%s\"?", folder.getName());
-            String description = "This will also delete all files and tags managed by this folder. This action cannot be reversed.";
-            if (IOManager.confirmAction("Delete Folder", header, description))
-            {
-                model.getManagedFolders().remove(folder);
-                Database.deleteManagedFolder(folder);
-                return true;
-            }
-        }
-        else
-            IOManager.showError("This folder is required and cannot be deleted.");
-
-        return false;
-    }
-
     /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),
      * or return null if the path is not a valid directory or does not permit its files to be read */
     public static File[] getFilesInDir(final String PATH)
@@ -418,6 +397,132 @@ public class IOManager
             System.out.printf("Database.getFilesInDir: Path \"%s\" does not lead to a valid directory", PATH);
             return null;
         }
+    }
+
+    /* Move a ManagedFolder's corresponding directory in computer storage (NOT in the database).
+     * Also used for renaming folders because a directory cannot be renamed if it contains files. */
+    public static boolean moveManagedFolder(ManagedFolder folder, ManagedFolder delta)
+    {
+        // Check that the new directory path isn't already in use
+        String targetLocation = (delta.getLocation() == null) ? folder.getLocation() : delta.getLocation();
+        String targetName = (delta.getName() == null) ? folder.getName() : delta.getName();
+        String targetPath = formatPath(targetLocation, targetName);
+        File target = new File(targetPath);
+        if (!target.exists())
+        {
+            // Create the new directory
+            if (target.mkdir())
+            {
+                // Create the new storage subdirectory
+                File storage = new File(formatPath(targetPath, STORAGE_DIRECTORY_NAME));
+                if (storage.mkdir())
+                {
+                    try
+                    {
+                        // Move every file in the original directory to the new one
+                        File source = new File(folder.getFullPath());
+                        File[] sourceFiles = source.listFiles();
+                        if (sourceFiles != null)
+                        {
+                            for (File file : sourceFiles)
+                            {
+                                if (file.isFile())
+                                    Files.move(file.toPath(), target.toPath().resolve(file.getName()));
+                            }
+                        }
+
+                        // Move every file in the original storage subdirectory to the new one
+                        File sourceStorage = new File(formatPath(folder.getFullPath(), STORAGE_DIRECTORY_NAME));
+                        sourceFiles = sourceStorage.listFiles();
+                        if (sourceFiles != null)
+                        {
+                            for (File file : sourceFiles)
+                                Files.move(file.toPath(), storage.toPath().resolve(file.getName()));
+                        }
+
+                        // Delete the old storage subdirectory
+                        if (!sourceStorage.delete())
+                            System.out.println("IOManager.moveManagedFolder: Unable to delete original storage directory");
+
+                        // Delete the old directory
+                        if (!source.delete())
+                            System.out.println("IOManager.moveManagedFolder: Unable to delete original directory");
+
+                        return true;
+                    }
+                    catch (IOException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                }
+                else
+                    System.out.printf("IOManager.moveManagedFolder: Failed to create storage directory \"%s\"\n", storage.getAbsolutePath());
+            }
+            else
+                System.out.printf("IOManager.moveManagedFolder: Failed to create directory \"%s\"\n", target.getAbsolutePath());
+        }
+        else
+            System.out.printf("IOManager.moveManagedFolder: Destination directory \"%s\" already exists\n", target.getAbsolutePath());
+
+        return false;
+    }
+
+    // Confirm with user and then delete a ManagedFolder object, its database entry, and its directory in computer storage
+    public static boolean deleteManagedFolder(ManagedFoldersModel model, ManagedFolder folder)
+    {
+        // The default directory cannot be deleted
+        if (folder.getFullPath().equals(IOManager.getDefaultDirectory()))
+            IOManager.showError("This folder is required and cannot be deleted.");
+        else
+        {
+            // Alert the user which data this action deletes and ask for confirmation
+            String header = String.format("Are you sure you want to delete the folder \"%s\"?", folder.getName());
+            String description = "This will also delete all files and tags managed by this folder. This action cannot be reversed.";
+            if (IOManager.confirmAction("Delete Folder", header, description))
+            {
+                // Delete all the files in the storage subdirectory
+                File storage = new File(formatPath(folder.getFullPath(), STORAGE_DIRECTORY_NAME));
+                File[] storageFiles = storage.listFiles();
+                if (storageFiles != null)
+                {
+                    for (File file : storageFiles)
+                    {
+                        if (!file.delete())
+                            System.out.printf("IOManager.deleteManagedFolder: Unable to delete file \"%s\"\n", file.getName());
+                    }
+                }
+
+                // Delete all the files in the folder directory
+                File directory = new File(folder.getFullPath());
+                File[] files = directory.listFiles();
+                if (files != null)
+                {
+                    for (File file : files)
+                    {
+                        if (file.isFile())
+                        {
+                            if (!file.delete())
+                                System.out.printf("IOManager.deleteManagedFolder: Unable to delete file \"%s\"\n", file.getName());
+                        }
+                    }
+                }
+
+                // Delete the storage subdirectory
+                if (!storage.delete())
+                    System.out.println("IOManager.deleteManagedFolder: Unable to delete storage directory");
+
+                // Delete the folder directory
+                if (!directory.delete())
+                    System.out.println("IOManager.deleteManagedFolder: Unable to delete directory");
+
+                // Delete the ManagedFolder object and remove it from the database
+                model.deleteFolder(folder);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static boolean renameFile(String directory, String oldName, String newName)

@@ -162,21 +162,21 @@ public class TagNode
             return parent.get().getRoot();
     }
 
-    private String directory = null;
+    private ManagedFolder folder = null;
     public String getDirectory()
     {
         if (isRoot())
-            return directory;
+            return folder.getFullPath();
         else
             return getRoot().getDirectory();
     }
 
     // Root node constructor
-    public TagNode(String directory)
+    public TagNode(ManagedFolder folder)
     {
         parent.set(null);
         tag = new SimpleStringProperty("root");
-        this.directory = directory;
+        this.folder = folder;
     }
 
     // General constructor (should not be used for the root node)

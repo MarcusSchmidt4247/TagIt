@@ -10,6 +10,7 @@ import com.github.marcusschmidt4247.tagit.TaggerApplication;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
 import com.github.marcusschmidt4247.tagit.gui.MediaControlView;
+import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.SearchCriteria;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import com.github.marcusschmidt4247.tagit.models.TaggerModel;
@@ -107,9 +108,9 @@ public class TaggerController
         });
     }
 
-    public void setDirectory(String directory)
+    public void setFolder(ManagedFolder folder)
     {
-        taggerModel = new TaggerModel(directory);
+        taggerModel = new TaggerModel(folder);
 
         mediaView.init();
 
@@ -156,6 +157,9 @@ public class TaggerController
         // Initialize and then hide the edit pane
         editTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
         onToggleEdit();
+
+        // Add a listener that will close the window if the ManagedFolder it views is deleted
+        taggerModel.getFolder().deletedProperty().addListener((observableValue, aBoolean, t1) -> ((Stage) mainSplitPane.getScene().getWindow()).close());
     }
 
     public void keyEventHandler(KeyEvent event)
@@ -255,7 +259,7 @@ public class TaggerController
         SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), anyMatch, excluding, getSortMethod());
 
         // Select files that meet the search criteria and refresh the content pane
-        taggerModel.setFiles(Database.getTaggedFiles(taggerModel.getDirectory(), searchCriteria));
+        taggerModel.setFiles(Database.getTaggedFiles(taggerModel.getPath(), searchCriteria));
         refreshContentPane(taggerModel.firstFile());
     }
 
@@ -274,7 +278,7 @@ public class TaggerController
     {
         if (fileName != null)
         {
-            String filePath = IOManager.getFilePath(taggerModel.getDirectory(), fileName);
+            String filePath = IOManager.getFilePath(taggerModel.getPath(), fileName);
             if (fileName.toLowerCase().matches(".+[.](jpe?g|png)$"))
             {
                 try (FileInputStream input = new FileInputStream(filePath))

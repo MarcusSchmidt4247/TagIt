@@ -6,6 +6,7 @@
 package com.github.marcusschmidt4247.tagit.models;
 
 import com.github.marcusschmidt4247.tagit.Database;
+import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import javafx.collections.ObservableList;
 
@@ -25,14 +26,34 @@ public class ManagedFoldersModel
         Database.createManagedFolder(newFolder);
     }
 
-    // Update the provided folder with the values of the folderDelta argument
-    public void updateFolder(ManagedFolder folder, ManagedFolder folderDelta)
+    // Update the ManagedFolder, database, and directory in device storage with the changes in 'delta'
+    public void updateFolder(ManagedFolder folder, ManagedFolder delta)
     {
-        if (folderDelta.isMainFolder() != null && folderDelta.isMainFolder())
+        // If this change makes the folder the main one, reset the previous main folder
+        if (delta.isMainFolder() != null && delta.isMainFolder())
             resetMainFolder();
 
-        folder.set(folderDelta);
-        Database.updateManagedFolder(folderDelta);
+        // If needed, attempt to move or rename the directory in storage
+        boolean update = true;
+        if (delta.getName() != null || delta.getLocation() != null)
+            update = IOManager.moveManagedFolder(folder, delta);
+
+        // Update the database and ManagedFolder object unless changes in device storage failed
+        if (update)
+        {
+            Database.updateManagedFolder(delta);
+            folder.set(delta);
+        }
+        else
+            IOManager.showError("Failed to update folder");
+    }
+
+    // Delete the ManagedFolder and its database entry
+    public void deleteFolder(ManagedFolder folder)
+    {
+        folder.delete();
+        getManagedFolders().remove(folder);
+        Database.deleteManagedFolder(folder);
     }
 
     // Check if a folder with the given (unique) name exists

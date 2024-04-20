@@ -32,12 +32,12 @@ public class TaggerApplication extends Application
             // Attempt to retrieve, verify, and open the user's main directory
             ManagedFolder mainFolder = Database.getMainFolder();
             if (mainFolder != null && IOManager.verify(mainFolder.getFullPath()))
-                IOManager.openFolder(mainFolder);
+                IOManager.openFolder(mainFolder, stage);
             else
             {
                 // If unable to open the main directory, then open the default directory
                 System.out.println("TaggerApplication.start: Unable to open main window");
-                IOManager.openFolder();
+                IOManager.openFolder(stage);
             }
         }
     }

@@ -51,6 +51,9 @@ public class ManagedFolder
     private SimpleStringProperty mainFolderStringProperty = null;
     public StringProperty mainFolderProperty() { return mainFolderStringProperty; }
 
+    private final BooleanProperty deleted;
+    public BooleanProperty deletedProperty() { return deleted; }
+
     public ManagedFolder() { this(-1, null, null, null); }
 
     public ManagedFolder(String name, String location, boolean mainFolder) { this(-1, name, location, mainFolder); }
@@ -67,6 +70,9 @@ public class ManagedFolder
 
         if (mainFolder != null)
             setMainFolder(mainFolder);
+
+        deleted = new SimpleBooleanProperty();
+        deleted.set(false);
     }
 
     public boolean equals(ManagedFolder other) { return id == other.getId(); }
@@ -80,6 +86,8 @@ public class ManagedFolder
         if (delta.isMainFolder() != null)
             mainFolder.set(delta.isMainFolder());
     }
+
+    public void delete() { deleted.set(true); }
 
     private String getMainFolderString(boolean main) { return main ? "yes" : ""; }
 }
