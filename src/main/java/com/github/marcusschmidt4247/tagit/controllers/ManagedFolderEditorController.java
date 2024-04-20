@@ -7,7 +7,6 @@ package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
-import com.github.marcusschmidt4247.tagit.models.ManagedFoldersModel;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
@@ -31,15 +30,12 @@ public class ManagedFolderEditorController
     @FXML Button saveButton;
     @FXML Button deleteButton;
 
-    private ManagedFoldersModel model = null;
     private ManagedFolder folder = null;
 
     private boolean[] editedProperties;
 
-    public void setFolders(ManagedFoldersModel model, ManagedFolder folder)
+    public void setFolders(ManagedFolder folder)
     {
-        this.model = model;
-
         editedProperties = new boolean[3];
         Arrays.fill(editedProperties, false);
 
@@ -52,7 +48,7 @@ public class ManagedFolderEditorController
             mainCheck.setSelected(folder.isMainFolder());
 
             // If the given folder is also the default, disable editing its name/location and the delete button
-            if (folder.getFullPath().equals(IOManager.getDefaultDirectory()))
+            if (folder.isDefaultFolder())
             {
                 nameField.setDisable(true);
                 locationButton.setVisible(false);
@@ -105,11 +101,9 @@ public class ManagedFolderEditorController
 
     public void onDeleteButton()
     {
-        if (model == null)
-            System.out.println("ManagedFolderEditorController.onDeleteButton: model == null");
-        else if (folder == null)
+        if (folder == null)
             System.out.println("ManagedFolderEditorController.onDeleteButton: folder == null");
-        else if (IOManager.deleteManagedFolder(model, folder))
+        else if (IOManager.deleteManagedFolder(folder))
             ((Stage) nameField.getScene().getWindow()).close();
     }
 
@@ -122,7 +116,7 @@ public class ManagedFolderEditorController
             IOManager.showError("Name cannot be blank");
         else if (!IOManager.validInput(nameField.getText()))
             IOManager.showError("Name cannot contain slashes or quotes");
-        else if ((folder == null || !folder.getName().equals(nameField.getText())) && model.folderExists(nameField.getText()))
+        else if ((folder == null || !folder.getName().equals(nameField.getText())) && IOManager.getManagedFoldersModel().folderExists(nameField.getText()))
             IOManager.showError("A managed folder is already using this name");
         else if (locationLabel.getText().isBlank())
             IOManager.showError("A location must be selected");
@@ -133,10 +127,11 @@ public class ManagedFolderEditorController
                 IOManager.showError("A folder with this name already exists at this location");
             else if (folder == null)
             {
-                // If a new folder is being created, the chosen directory must be verified before the ManagedFolder object is created
-                if (IOManager.verify(directory.getAbsolutePath()))
+                // If a new folder is being created, the chosen directory must be verified before the ManagedFolder object is added to the model
+                ManagedFolder newFolder = new ManagedFolder(nameField.getText(), locationLabel.getText(), mainCheck.isSelected());
+                if (IOManager.verify(newFolder))
                 {
-                    model.addFolder(new ManagedFolder(nameField.getText(), locationLabel.getText(), mainCheck.isSelected()));
+                    IOManager.getManagedFoldersModel().addFolder(newFolder);
                     ((Stage) nameField.getScene().getWindow()).close();
                 }
                 else
@@ -159,7 +154,7 @@ public class ManagedFolderEditorController
                     if (editedProperties[2])
                         delta.setMainFolder(mainCheck.isSelected());
 
-                    model.updateFolder(folder, delta);
+                    IOManager.getManagedFoldersModel().updateFolder(folder, delta);
                 }
                 ((Stage) nameField.getScene().getWindow()).close();
             }

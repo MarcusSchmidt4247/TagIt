@@ -61,10 +61,10 @@ public class Database
         }
     }
 
-    public static boolean isUpToDate(String directory)
+    public static boolean isUpToDate(ManagedFolder folder)
     {
         boolean upToDate = false;
-        try (Connection connection = connect(directory))
+        try (Connection connection = connect(folder.getFullPath()))
         {
             Statement statement = connection.createStatement();
             ResultSet result = statement.executeQuery("SELECT version FROM DatabaseInfo");
@@ -80,7 +80,7 @@ public class Database
                             // Create the Folders table
                             statement.execute(FOLDERS_SCHEMA);
                             // If this is the default directory's database, which tracks all managed folders, then insert the default value to the Folders table
-                            if (directory.equals(IOManager.getDefaultDirectory()))
+                            if (folder.isDefaultFolder())
                                 createManagedFolder(new ManagedFolder(IOManager.getDefaultDirectoryName(), IOManager.getDefaultDirectoryLocation(), true));
                             statement.executeUpdate("UPDATE DatabaseInfo SET version=2");
                         }
@@ -651,33 +651,10 @@ public class Database
     // Methods related to managed folders *
     //*************************************
 
-    public static ManagedFolder getMainFolder()
-    {
-        ManagedFolder mainFolder = null;
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
-        {
-            Statement statement = connection.createStatement();
-            ResultSet result = statement.executeQuery("SELECT * FROM Folders WHERE main=1");
-            if (result.next())
-            {
-                int id = result.getInt(1);
-                String name = result.getString(2);
-                String path = result.getString(3);
-                mainFolder = new ManagedFolder(id, name, path, true);
-            }
-            statement.close();
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException(e);
-        }
-        return mainFolder;
-    }
-
     public static ObservableList<ManagedFolder> getManagedFolders()
     {
         ObservableList<ManagedFolder> managedFolders = FXCollections.observableArrayList();
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        try (Connection connection = connect(IOManager.formatPath(IOManager.getDefaultDirectoryLocation(), IOManager.getDefaultDirectoryName())))
         {
             Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery("SELECT * FROM Folders ORDER BY main DESC, name ASC");
@@ -700,7 +677,7 @@ public class Database
 
     public static void createManagedFolder(ManagedFolder newFolder)
     {
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
         {
             Statement statement = connection.createStatement();
 
@@ -727,7 +704,7 @@ public class Database
 
     public static void deleteManagedFolder(ManagedFolder managedFolder)
     {
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
         {
             Statement statement = connection.createStatement();
             String sql = String.format("DELETE FROM Folders WHERE id=%d", managedFolder.getId());
@@ -754,7 +731,7 @@ public class Database
             return;
         }
 
-        try (Connection connection = connect(IOManager.getDefaultDirectory()))
+        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
         {
             Statement statement = connection.createStatement();
 
@@ -800,11 +777,11 @@ public class Database
         }
         catch (SQLException exception)
         {
-            // If something went wrong and a retry is permitted, re-verify the program directories and database file before trying again
-            if (retry && IOManager.verify(directory))
+            // If something went wrong and a retry is permitted, try again
+            if (retry)
             {
                 System.out.printf("Database.connect: %s\n", exception);
-                System.out.println("Database.connect: Verified files. Retrying connection...");
+                System.out.println("Database.connect: Retrying connection...");
                 return connect(directory, false);
             }
             else

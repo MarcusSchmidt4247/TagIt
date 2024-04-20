@@ -38,12 +38,17 @@ public class IOManager
     private static final String DEFAULT_DIRECTORY_NAME = "Main";
     public static String getDefaultDirectoryName() { return DEFAULT_DIRECTORY_NAME; }
 
-    public static String getDefaultDirectory() { return formatPath(rootDirectory, DEFAULT_DIRECTORY_NAME); }
-
     private static final String STORAGE_DIRECTORY_NAME = "Storage";
     private static String pathSeparator = null;
 
     private static Stage managedFoldersStage = null;
+    private static ManagedFoldersModel managedFoldersModel = null;
+    public static ManagedFoldersModel getManagedFoldersModel()
+    {
+        if (managedFoldersModel == null)
+            managedFoldersModel = new ManagedFoldersModel();
+        return managedFoldersModel;
+    }
 
     /* Check whether the user program directory, TagIt directory, and default managed directory exist. If not, create them.
      * This method should be called immediately after the application launches, and it can be called again at any time
@@ -78,13 +83,15 @@ public class IOManager
         }
 
         // Check whether the default managed directory exists, and create it if not
-        return verify(getDefaultDirectory());
+        return verify(getManagedFoldersModel().getDefaultFolder());
     }
 
     /* Check whether a directory exists at the given path and that it contains the database and storage subdirectory required to be a managed folder.
      * If any of these elements are missing, they will be created. */
-    public static boolean verify(String directoryPath)
+    public static boolean verify(ManagedFolder folder)
     {
+        String directoryPath = folder.getFullPath();
+
         // Check whether the given directory exists, and create it if not
         File directory = new File(directoryPath);
         if (!directory.exists() && !directory.mkdir())
@@ -112,7 +119,7 @@ public class IOManager
                 if (database.createNewFile() && Database.createTables(directoryPath))
                 {
                     // If a new database file has been created, and it's for the default managed folder, add it to its own database as the primary folder
-                    if (directoryPath.equals(getDefaultDirectory()))
+                    if (folder.isDefaultFolder())
                         Database.createManagedFolder(new ManagedFolder(getDefaultDirectoryName(), rootDirectory, true));
                 }
                 else
@@ -128,7 +135,7 @@ public class IOManager
                 return false;
             }
         }
-        else if (!Database.isUpToDate(directoryPath))
+        else if (!Database.isUpToDate(folder))
         {
             showError("Incompatible database version");
             return false;
@@ -191,7 +198,7 @@ public class IOManager
     }
 
     // Open a new main window for the default managed folder
-    public static void openFolder(Stage stage) { openFolder(new ManagedFolder(DEFAULT_DIRECTORY_NAME, getDefaultDirectoryLocation(), false), stage);}
+    public static void openFolder(Stage stage) { openFolder(getManagedFoldersModel().getDefaultFolder(), stage);}
 
     // Open a new main window for the provided managed folder
     public static void openFolder(ManagedFolder folder) { openFolder(folder, new Stage()); }
@@ -242,13 +249,13 @@ public class IOManager
             managedFoldersStage.toFront();
     }
 
-    public static void editManagedFolder(Window owner, ManagedFoldersModel model, ManagedFolder folder)
+    public static void editManagedFolder(Window owner, ManagedFolder folder)
     {
         try
         {
             FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folder-editor-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
-            ((ManagedFolderEditorController) fxmlLoader.getController()).setFolders(model, folder);
+            ((ManagedFolderEditorController) fxmlLoader.getController()).setFolders(folder);
             Stage stage = new Stage();
             stage.initOwner(owner);
             stage.setMinWidth(400);
@@ -468,10 +475,10 @@ public class IOManager
     }
 
     // Confirm with user and then delete a ManagedFolder object, its database entry, and its directory in computer storage
-    public static boolean deleteManagedFolder(ManagedFoldersModel model, ManagedFolder folder)
+    public static boolean deleteManagedFolder(ManagedFolder folder)
     {
         // The default directory cannot be deleted
-        if (folder.getFullPath().equals(IOManager.getDefaultDirectory()))
+        if (folder.isDefaultFolder())
             IOManager.showError("This folder is required and cannot be deleted.");
         else
         {
@@ -516,7 +523,7 @@ public class IOManager
                     System.out.println("IOManager.deleteManagedFolder: Unable to delete directory");
 
                 // Delete the ManagedFolder object and remove it from the database
-                model.deleteFolder(folder);
+                getManagedFoldersModel().deleteFolder(folder);
 
                 return true;
             }

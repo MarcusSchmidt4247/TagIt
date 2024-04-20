@@ -8,12 +8,60 @@ package com.github.marcusschmidt4247.tagit.models;
 import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 
 public class ManagedFoldersModel
 {
     private final ObservableList<ManagedFolder> managedFolders;
     public ObservableList<ManagedFolder> getManagedFolders() { return managedFolders; }
+
+    private ManagedFolder defaultFolder = null;
+    public ManagedFolder getDefaultFolder()
+    {
+        // If the default folder hasn't been found yet, search for and save it
+        if (defaultFolder == null)
+        {
+            for (ManagedFolder folder : managedFolders)
+            {
+                if (folder.isDefaultFolder())
+                {
+                    defaultFolder = folder;
+                    break;
+                }
+            }
+        }
+        return defaultFolder;
+    }
+
+    private ManagedFolder mainFolder = null;
+    public ManagedFolder getMainFolder() // might return null!
+    {
+        // If the main folder is not currently set, search through the list of folders to find it if it exists
+        if (mainFolder == null)
+        {
+            for (ManagedFolder folder : managedFolders)
+            {
+                if (folder.isMainFolder())
+                {
+                    // Save this folder and set a listener that will reset 'mainFolder' if it stops being the main folder
+                    mainFolder = folder;
+                    mainFolder.mainFolderProperty().addListener(new ChangeListener<String>()
+                    {
+                        @Override
+                        public void changed(ObservableValue<? extends String> observableValue, String s, String t1)
+                        {
+                            mainFolder.mainFolderProperty().removeListener(this);
+                            mainFolder = null;
+                        }
+                    });
+                    break;
+                }
+            }
+        }
+        return mainFolder;
+    }
 
     public ManagedFoldersModel() { managedFolders = Database.getManagedFolders(); }
 

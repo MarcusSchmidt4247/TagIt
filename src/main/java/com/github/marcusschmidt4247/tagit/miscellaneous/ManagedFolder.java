@@ -31,6 +31,9 @@ public class ManagedFolder
 
     public String getFullPath() { return IOManager.formatPath(location.get(), name.get()); }
 
+    // The default folder is always the first one created, so its ID must be 1
+    public boolean isDefaultFolder() { return id == 1; }
+
     private BooleanProperty mainFolder = null;
     public Boolean isMainFolder() { return (mainFolder != null) ? mainFolder.get() : null; }
     public void setMainFolder(boolean mainFolder)
@@ -75,7 +78,7 @@ public class ManagedFolder
         deleted.set(false);
     }
 
-    public boolean equals(ManagedFolder other) { return id == other.getId(); }
+    public boolean equals(ManagedFolder other) { return id != -1 && id == other.getId(); }
 
     public void set(ManagedFolder delta)
     {

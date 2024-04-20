@@ -7,7 +7,6 @@ package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
-import com.github.marcusschmidt4247.tagit.models.ManagedFoldersModel;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.SelectionMode;
@@ -21,12 +20,8 @@ public class ManagedFoldersController
     @FXML TableColumn<ManagedFolder, String> locationColumn;
     @FXML TableColumn<ManagedFolder, String> isDefaultColumn;
 
-    ManagedFoldersModel model = null;
-
     public void initialize()
     {
-        model = new ManagedFoldersModel();
-
         // Bind the table columns to the ManagedFolder properties
         nameColumn.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
         locationColumn.setCellValueFactory(cellData -> cellData.getValue().locationProperty());
@@ -34,21 +29,21 @@ public class ManagedFoldersController
 
         // Bind the table rows to the list of ManagedFolders
         folderTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        folderTable.itemsProperty().bind(new SimpleObjectProperty<>(model.getManagedFolders()));
+        folderTable.itemsProperty().bind(new SimpleObjectProperty<>(IOManager.getManagedFoldersModel().getManagedFolders()));
     }
 
     public void onDeleteFolder()
     {
         if (!folderTable.getSelectionModel().isEmpty())
-            IOManager.deleteManagedFolder(model, folderTable.getSelectionModel().getSelectedItem());
+            IOManager.deleteManagedFolder(folderTable.getSelectionModel().getSelectedItem());
     }
 
-    public void onCreateFolder() { IOManager.editManagedFolder(folderTable.getScene().getWindow(), model, null); }
+    public void onCreateFolder() { IOManager.editManagedFolder(folderTable.getScene().getWindow(), null); }
 
     public void onEditFolder()
     {
         if (!folderTable.getSelectionModel().isEmpty())
-            IOManager.editManagedFolder(folderTable.getScene().getWindow(), model, folderTable.getSelectionModel().getSelectedItem());
+            IOManager.editManagedFolder(folderTable.getScene().getWindow(), folderTable.getSelectionModel().getSelectedItem());
     }
 
     public void onOpenFolder()

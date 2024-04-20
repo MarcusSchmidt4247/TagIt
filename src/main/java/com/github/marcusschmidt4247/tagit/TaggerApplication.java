@@ -30,13 +30,13 @@ public class TaggerApplication extends Application
         if (IOManager.verify())
         {
             // Attempt to retrieve, verify, and open the user's main directory
-            ManagedFolder mainFolder = Database.getMainFolder();
-            if (mainFolder != null && IOManager.verify(mainFolder.getFullPath()))
+            ManagedFolder mainFolder = IOManager.getManagedFoldersModel().getMainFolder();
+            if (mainFolder != null && IOManager.verify(mainFolder))
                 IOManager.openFolder(mainFolder, stage);
             else
             {
                 // If unable to open the main directory, then open the default directory
-                System.out.println("TaggerApplication.start: Unable to open main window");
+                System.out.println("TaggerApplication.start: Failed to locate or verify main folder");
                 IOManager.openFolder(stage);
             }
         }
