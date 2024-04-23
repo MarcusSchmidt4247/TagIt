@@ -47,14 +47,6 @@ public class ManagedFolderEditorController
             locationLabel.setText(folder.getLocation());
             mainCheck.setSelected(folder.isMainFolder());
 
-            // If the given folder is also the default, disable editing its name/location and the delete button
-            if (folder.isDefaultFolder())
-            {
-                nameField.setDisable(true);
-                locationButton.setVisible(false);
-                deleteButton.setVisible(false);
-            }
-
             // Add listeners to the name and main folder controls that track whether they have been edited
             nameField.textProperty().addListener(new ChangeListener<>()
             {
@@ -78,7 +70,7 @@ public class ManagedFolderEditorController
         else
         {
             // If no folder was given as an argument, prepare the window to create a new folder
-            locationLabel.setText(IOManager.getDefaultDirectoryLocation());
+            locationLabel.setText(IOManager.getRootDirectory());
             saveButton.setText("Create");
             deleteButton.setVisible(false);
         }
@@ -88,7 +80,7 @@ public class ManagedFolderEditorController
     public void onSelect()
     {
         DirectoryChooser directoryChooser = new DirectoryChooser();
-        directoryChooser.setInitialDirectory(new File(IOManager.getDefaultDirectoryLocation()));
+        directoryChooser.setInitialDirectory(new File(IOManager.getRootDirectory()));
         File result = directoryChooser.showDialog(locationLabel.getScene().getWindow());
         if (result != null)
         {

@@ -17,24 +17,6 @@ public class ManagedFoldersModel
     private final ObservableList<ManagedFolder> managedFolders;
     public ObservableList<ManagedFolder> getManagedFolders() { return managedFolders; }
 
-    private ManagedFolder defaultFolder = null;
-    public ManagedFolder getDefaultFolder()
-    {
-        // If the default folder hasn't been found yet, search for and save it
-        if (defaultFolder == null)
-        {
-            for (ManagedFolder folder : managedFolders)
-            {
-                if (folder.isDefaultFolder())
-                {
-                    defaultFolder = folder;
-                    break;
-                }
-            }
-        }
-        return defaultFolder;
-    }
-
     private ManagedFolder mainFolder = null;
     public ManagedFolder getMainFolder() // might return null!
     {

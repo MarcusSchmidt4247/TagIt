@@ -33,10 +33,9 @@ import java.util.Vector;
 public class IOManager
 {
     private static String rootDirectory = null;
-    public static String getDefaultDirectoryLocation() { return rootDirectory; }
+    public static String getRootDirectory() { return rootDirectory; }
 
-    private static final String DEFAULT_DIRECTORY_NAME = "Main";
-    public static String getDefaultDirectoryName() { return DEFAULT_DIRECTORY_NAME; }
+    public static ManagedFolder newDefaultDirectoryObject() { return new ManagedFolder("Main", rootDirectory, true); }
 
     private static final String STORAGE_DIRECTORY_NAME = "Storage";
     private static String pathSeparator = null;
@@ -50,9 +49,9 @@ public class IOManager
         return managedFoldersModel;
     }
 
-    /* Check whether the user program directory, TagIt directory, and default managed directory exist. If not, create them.
+    /* Check whether the user program directory, TagIt directory, and root database file exist. If not, create them.
      * This method should be called immediately after the application launches, and it can be called again at any time
-     * to confirm that these required directories still exist. */
+     * to confirm that these required files still exist. */
     public static boolean verify()
     {
         // Determine the platform-appropriate path for the user program directory
@@ -82,8 +81,32 @@ public class IOManager
             return false;
         }
 
-        // Check whether the default managed directory exists, and create it if not
-        return verify(getManagedFoldersModel().getDefaultFolder());
+        // Check whether the root database file exists (create it if not) and is up-to-date
+        File database = new File(formatPath(rootDirectory, Database.getName()));
+        if (!database.isFile())
+        {
+            try
+            {
+                if (!(database.createNewFile() && Database.createRootTables(rootDirectory)))
+                {
+                    showError("Cannot create database");
+                    return false;
+                }
+            }
+            catch (IOException | SecurityException exception)
+            {
+                System.out.printf("IOManager.verify: %s\n", exception.toString());
+                showError("Cannot create root database file");
+                return false;
+            }
+        }
+        else if (!Database.isUpToDate(rootDirectory, true))
+        {
+            showError("Incompatible database version");
+            return false;
+        }
+
+        return true;
     }
 
     /* Check whether a directory exists at the given path and that it contains the database and storage subdirectory required to be a managed folder.
@@ -116,13 +139,7 @@ public class IOManager
         {
             try
             {
-                if (database.createNewFile() && Database.createTables(directoryPath))
-                {
-                    // If a new database file has been created, and it's for the default managed folder, add it to its own database as the primary folder
-                    if (folder.isDefaultFolder())
-                        Database.createManagedFolder(new ManagedFolder(getDefaultDirectoryName(), rootDirectory, true));
-                }
-                else
+                if (!(database.createNewFile() && Database.createTables(directoryPath)))
                 {
                     showError("Cannot create database");
                     return false;
@@ -196,9 +213,6 @@ public class IOManager
         alert.setHeaderText(message);
         alert.showAndWait();
     }
-
-    // Open a new main window for the default managed folder
-    public static void openFolder(Stage stage) { openFolder(getManagedFoldersModel().getDefaultFolder(), stage);}
 
     // Open a new main window for the provided managed folder
     public static void openFolder(ManagedFolder folder) { openFolder(folder, new Stage()); }
@@ -477,56 +491,50 @@ public class IOManager
     // Confirm with user and then delete a ManagedFolder object, its database entry, and its directory in computer storage
     public static boolean deleteManagedFolder(ManagedFolder folder)
     {
-        // The default directory cannot be deleted
-        if (folder.isDefaultFolder())
-            IOManager.showError("This folder is required and cannot be deleted.");
-        else
+        // Alert the user which data this action deletes and ask for confirmation
+        String header = String.format("Are you sure you want to delete the folder \"%s\"?", folder.getName());
+        String description = "This will also delete all files and tags managed by this folder. This action cannot be reversed.";
+        if (IOManager.confirmAction("Delete Folder", header, description))
         {
-            // Alert the user which data this action deletes and ask for confirmation
-            String header = String.format("Are you sure you want to delete the folder \"%s\"?", folder.getName());
-            String description = "This will also delete all files and tags managed by this folder. This action cannot be reversed.";
-            if (IOManager.confirmAction("Delete Folder", header, description))
+            // Delete all the files in the storage subdirectory
+            File storage = new File(formatPath(folder.getFullPath(), STORAGE_DIRECTORY_NAME));
+            File[] storageFiles = storage.listFiles();
+            if (storageFiles != null)
             {
-                // Delete all the files in the storage subdirectory
-                File storage = new File(formatPath(folder.getFullPath(), STORAGE_DIRECTORY_NAME));
-                File[] storageFiles = storage.listFiles();
-                if (storageFiles != null)
+                for (File file : storageFiles)
                 {
-                    for (File file : storageFiles)
+                    if (!file.delete())
+                        System.out.printf("IOManager.deleteManagedFolder: Unable to delete file \"%s\"\n", file.getName());
+                }
+            }
+
+            // Delete all the files in the folder directory
+            File directory = new File(folder.getFullPath());
+            File[] files = directory.listFiles();
+            if (files != null)
+            {
+                for (File file : files)
+                {
+                    if (file.isFile())
                     {
                         if (!file.delete())
                             System.out.printf("IOManager.deleteManagedFolder: Unable to delete file \"%s\"\n", file.getName());
                     }
                 }
-
-                // Delete all the files in the folder directory
-                File directory = new File(folder.getFullPath());
-                File[] files = directory.listFiles();
-                if (files != null)
-                {
-                    for (File file : files)
-                    {
-                        if (file.isFile())
-                        {
-                            if (!file.delete())
-                                System.out.printf("IOManager.deleteManagedFolder: Unable to delete file \"%s\"\n", file.getName());
-                        }
-                    }
-                }
-
-                // Delete the storage subdirectory
-                if (!storage.delete())
-                    System.out.println("IOManager.deleteManagedFolder: Unable to delete storage directory");
-
-                // Delete the folder directory
-                if (!directory.delete())
-                    System.out.println("IOManager.deleteManagedFolder: Unable to delete directory");
-
-                // Delete the ManagedFolder object and remove it from the database
-                getManagedFoldersModel().deleteFolder(folder);
-
-                return true;
             }
+
+            // Delete the storage subdirectory
+            if (!storage.delete())
+                System.out.println("IOManager.deleteManagedFolder: Unable to delete storage directory");
+
+            // Delete the folder directory
+            if (!directory.delete())
+                System.out.println("IOManager.deleteManagedFolder: Unable to delete directory");
+
+            // Delete the ManagedFolder object and remove it from the database
+            getManagedFoldersModel().deleteFolder(folder);
+
+            return true;
         }
 
         return false;

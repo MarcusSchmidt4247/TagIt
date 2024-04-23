@@ -21,7 +21,26 @@ public class Database
 
     private static final int VERSION = 2;
 
-    private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0)";
+    private static final String DATABASE_INFO_SCHEMA = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
+    private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0, created INTEGER NOT NULL)";
+
+    public static boolean createRootTables(String directory)
+    {
+        try (Connection connection = connect(directory, false))
+        {
+            Statement statement = connection.createStatement();
+            statement.execute(FOLDERS_SCHEMA);
+            statement.execute(DATABASE_INFO_SCHEMA);
+            statement.execute(String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION));
+            statement.close();
+            return true;
+        }
+        catch (SQLException exception)
+        {
+            System.out.println(exception.toString());
+            return false;
+        }
+    }
 
     public static boolean createTables(String directory)
     {
@@ -40,17 +59,17 @@ public class Database
                     "FOREIGN KEY (parent_id) REFERENCES Tag(id) ON DELETE CASCADE," +
                     "FOREIGN KEY (child_id) REFERENCES Tag(id) ON DELETE CASCADE," +
                     "PRIMARY KEY (parent_id, child_id))";
-            String databaseInfoSchema = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
             Statement statement = connection.createStatement();
             statement.execute(fileSchema);
             statement.execute(tagSchema);
             statement.execute(fileTagsSchema);
             statement.execute(tagParentageSchema);
-            statement.execute(FOLDERS_SCHEMA);
-            statement.execute(databaseInfoSchema);
+            statement.execute(DATABASE_INFO_SCHEMA);
+
             // Insert the current version number into the DatabaseInfo table
             String sql = String.format("INSERT INTO DatabaseInfo VALUES (%d)", VERSION);
             statement.execute(sql);
+
             statement.close();
             return true;
         }
@@ -61,10 +80,12 @@ public class Database
         }
     }
 
-    public static boolean isUpToDate(ManagedFolder folder)
+    public static boolean isUpToDate(ManagedFolder folder) { return isUpToDate(folder.getFullPath(), false); }
+
+    public static boolean isUpToDate(String directory, boolean rootDatabase)
     {
         boolean upToDate = false;
-        try (Connection connection = connect(folder.getFullPath()))
+        try (Connection connection = connect(directory))
         {
             Statement statement = connection.createStatement();
             ResultSet result = statement.executeQuery("SELECT version FROM DatabaseInfo");
@@ -77,11 +98,12 @@ public class Database
                         System.out.println("Updating database from version 1 to 2");
                         try
                         {
-                            // Create the Folders table
-                            statement.execute(FOLDERS_SCHEMA);
-                            // If this is the default directory's database, which tracks all managed folders, then insert the default value to the Folders table
-                            if (folder.isDefaultFolder())
-                                createManagedFolder(new ManagedFolder(IOManager.getDefaultDirectoryName(), IOManager.getDefaultDirectoryLocation(), true));
+                            // Create the Folders table in the root database
+                            if (rootDatabase)
+                            {
+                                statement.execute(FOLDERS_SCHEMA);
+                                createManagedFolder(IOManager.newDefaultDirectoryObject());
+                            }
                             statement.executeUpdate("UPDATE DatabaseInfo SET version=2");
                         }
                         catch (SQLException e)
@@ -488,7 +510,7 @@ public class Database
                 else
                 {
                     ResultSet result = statement.executeQuery("SELECT unixepoch('now')");
-                    created = result.getLong(0);
+                    created = result.getLong(1);
                 }
 
                 // Insert the file name and time created into the File table
@@ -654,7 +676,7 @@ public class Database
     public static ObservableList<ManagedFolder> getManagedFolders()
     {
         ObservableList<ManagedFolder> managedFolders = FXCollections.observableArrayList();
-        try (Connection connection = connect(IOManager.formatPath(IOManager.getDefaultDirectoryLocation(), IOManager.getDefaultDirectoryName())))
+        try (Connection connection = connect(IOManager.getRootDirectory()))
         {
             Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery("SELECT * FROM Folders ORDER BY main DESC, name ASC");
@@ -677,14 +699,18 @@ public class Database
 
     public static void createManagedFolder(ManagedFolder newFolder)
     {
-        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
+        try (Connection connection = connect(IOManager.getRootDirectory()))
         {
             Statement statement = connection.createStatement();
 
             if (newFolder.isMainFolder())
                 statement.execute("UPDATE Folders SET main=0");
 
-            String sql = String.format("INSERT INTO Folders (name, location, main) VALUES ('%s', '%s', %d)", newFolder.getName(), newFolder.getLocation(), newFolder.isMainFolder() ? 1 : 0);
+            // Get the current Unix time for the creation of this managed folder
+            ResultSet result = statement.executeQuery("SELECT unixepoch('now')");
+            long created = result.getLong(1);
+
+            String sql = String.format("INSERT INTO Folders (name, location, main, created) VALUES ('%s', '%s', %d, %d)", newFolder.getName(), newFolder.getLocation(), newFolder.isMainFolder() ? 1 : 0, created);
             statement.execute(sql, Statement.RETURN_GENERATED_KEYS);
 
             // Get this folder's ID assigned by the database and assign it to the ManagedFolder object
@@ -704,7 +730,7 @@ public class Database
 
     public static void deleteManagedFolder(ManagedFolder managedFolder)
     {
-        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
+        try (Connection connection = connect(IOManager.getRootDirectory()))
         {
             Statement statement = connection.createStatement();
             String sql = String.format("DELETE FROM Folders WHERE id=%d", managedFolder.getId());
@@ -731,7 +757,7 @@ public class Database
             return;
         }
 
-        try (Connection connection = connect(IOManager.getManagedFoldersModel().getDefaultFolder().getFullPath()))
+        try (Connection connection = connect(IOManager.getRootDirectory()))
         {
             Statement statement = connection.createStatement();
 

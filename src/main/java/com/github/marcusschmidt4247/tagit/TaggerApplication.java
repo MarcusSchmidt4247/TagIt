@@ -26,18 +26,35 @@ public class TaggerApplication extends Application
     @Override
     public void start(Stage stage)
     {
-        // Verify the default directory
+        // Verify the root directory
         if (IOManager.verify())
         {
-            // Attempt to retrieve, verify, and open the user's main directory
-            ManagedFolder mainFolder = IOManager.getManagedFoldersModel().getMainFolder();
-            if (mainFolder != null && IOManager.verify(mainFolder))
-                IOManager.openFolder(mainFolder, stage);
+            // If there aren't any managed folders, attempt to create, verify, and open the default folder
+            if (IOManager.getManagedFoldersModel().getManagedFolders().isEmpty())
+            {
+                ManagedFolder defaultFolder = IOManager.newDefaultDirectoryObject();
+                if (IOManager.verify(defaultFolder))
+                {
+                    IOManager.getManagedFoldersModel().addFolder(defaultFolder);
+                    IOManager.openFolder(defaultFolder, stage);
+                }
+                else
+                    System.out.println("TaggerApplication.start: Failed to verify default folder");
+            }
             else
             {
-                // If unable to open the main directory, then open the default directory
-                System.out.println("TaggerApplication.start: Failed to locate or verify main folder");
-                IOManager.openFolder(stage);
+                // If there are managed folders, attempt to get the user's main folder (if there isn't one, default to the first folder in the list)
+                ManagedFolder folder = IOManager.getManagedFoldersModel().getMainFolder();
+                if (folder == null)
+                {
+                    folder = IOManager.getManagedFoldersModel().getManagedFolders().getFirst();
+                    System.out.printf("TaggerApplication.start: No main folder, defaulting to \"%s\"\n", folder.getName());
+                }
+
+                if (IOManager.verify(folder))
+                    IOManager.openFolder(folder, stage);
+                else
+                    System.out.println("TaggerApplication.start: Failed to verify folder");
             }
         }
     }
