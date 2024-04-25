@@ -6,7 +6,7 @@
 package com.github.marcusschmidt4247.tagit.miscellaneous;
 
 import com.github.marcusschmidt4247.tagit.Database;
-import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -70,7 +70,7 @@ public class TagNode
             {
                 String header = String.format("There are %d files tagged with \"%s\" that will now also be tagged with \"%s\".", files.size(), tag.get(), child.getTag());
                 String description = "All tags a file is associated with must be part of a chain that ends with a childless tag.";
-                if (IOManager.confirmAction("New Tag", header, description))
+                if (WindowManager.confirmationDialog("New Tag", header, description))
                 {
                     for (String file : files)
                     {

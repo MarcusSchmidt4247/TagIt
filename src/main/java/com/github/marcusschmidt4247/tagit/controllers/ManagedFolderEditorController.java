@@ -6,6 +6,7 @@
 package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -105,18 +106,18 @@ public class ManagedFolderEditorController
     public void onSaveButton()
     {
         if (nameField.getText().isBlank())
-            IOManager.showError("Name cannot be blank");
+            WindowManager.showError("Name cannot be blank");
         else if (!IOManager.validInput(nameField.getText()))
-            IOManager.showError("Name cannot contain slashes or quotes");
+            WindowManager.showError("Name cannot contain slashes or quotes");
         else if ((folder == null || !folder.getName().equals(nameField.getText())) && IOManager.getManagedFoldersModel().folderExists(nameField.getText()))
-            IOManager.showError("A managed folder is already using this name");
+            WindowManager.showError("A managed folder is already using this name");
         else if (locationLabel.getText().isBlank())
-            IOManager.showError("A location must be selected");
+            WindowManager.showError("A location must be selected");
         else
         {
             File directory = new File(IOManager.formatPath(locationLabel.getText(), nameField.getText()));
             if (folder == null && directory.exists())
-                IOManager.showError("A folder with this name already exists at this location");
+                WindowManager.showError("A folder with this name already exists at this location");
             else if (folder == null)
             {
                 // If a new folder is being created, the chosen directory must be verified before the ManagedFolder object is added to the model
@@ -129,7 +130,7 @@ public class ManagedFolderEditorController
                 else
                 {
                     System.out.printf("ManagedFolderEditorController.onSaveButton: Unable to verify directory \"%s\"\n", directory.getAbsolutePath());
-                    IOManager.showError("Failed to create managed folder at this location");
+                    WindowManager.showError("Failed to create managed folder at this location");
                 }
             }
             else

@@ -14,8 +14,7 @@ import javafx.stage.Stage;
 
 public class TagSelectorController
 {
-    @FXML
-    private DynamicCheckTreeView tagTreeView;
+    @FXML private DynamicCheckTreeView tagTreeView;
 
     private TagNode root;
     private TagNode result;

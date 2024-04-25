@@ -6,7 +6,7 @@
 package com.github.marcusschmidt4247.tagit.gui;
 
 import com.github.marcusschmidt4247.tagit.Database;
-import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -70,7 +70,7 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
         {
             TagNode node = treeRoot.findNode(selectedItem);
             if (node != null)
-                IOManager.editTag(treeView.getScene().getWindow(), node);
+                WindowManager.openTagEditor(treeView.getScene().getWindow(), node);
             else
                 System.out.println("TreeViewMenuHandler.handleEdit: Unable to locate node for selected tree item");
         }

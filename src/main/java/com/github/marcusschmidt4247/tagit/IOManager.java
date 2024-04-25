@@ -5,24 +5,14 @@
 
 package com.github.marcusschmidt4247.tagit;
 
-import com.github.marcusschmidt4247.tagit.controllers.ManagedFolderEditorController;
-import com.github.marcusschmidt4247.tagit.controllers.TagEditorController;
-import com.github.marcusschmidt4247.tagit.controllers.TagSelectorController;
-import com.github.marcusschmidt4247.tagit.controllers.TaggerController;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ExtensionFilter;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import com.github.marcusschmidt4247.tagit.models.ManagedFoldersModel;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.input.KeyEvent;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.Window;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +30,6 @@ public class IOManager
     private static final String STORAGE_DIRECTORY_NAME = "Storage";
     private static String pathSeparator = null;
 
-    private static Stage managedFoldersStage = null;
     private static ManagedFoldersModel managedFoldersModel = null;
     public static ManagedFoldersModel getManagedFoldersModel()
     {
@@ -67,7 +56,7 @@ public class IOManager
         if (!programsDirectory.exists() && !programsDirectory.mkdir())
         {
             System.out.printf("IOManager.verify: User program directory \"%s\" doesn't exist and can't be created\n", programsDirectory.getAbsolutePath());
-            showError("User programs directory does not exist");
+            WindowManager.showError("User programs directory does not exist");
             return false;
         }
 
@@ -77,7 +66,7 @@ public class IOManager
         if (!tagItDirectory.exists() && !tagItDirectory.mkdir())
         {
             System.out.println("IOManager.verify: TagIt directory doesn't exist and can't be created");
-            showError("Cannot create TagIt directory");
+            WindowManager.showError("Cannot create TagIt directory");
             return false;
         }
 
@@ -89,20 +78,20 @@ public class IOManager
             {
                 if (!(database.createNewFile() && Database.createRootTables(rootDirectory)))
                 {
-                    showError("Cannot create database");
+                    WindowManager.showError("Cannot create database");
                     return false;
                 }
             }
             catch (IOException | SecurityException exception)
             {
                 System.out.printf("IOManager.verify: %s\n", exception.toString());
-                showError("Cannot create root database file");
+                WindowManager.showError("Cannot create root database file");
                 return false;
             }
         }
         else if (!Database.isUpToDate(rootDirectory, true))
         {
-            showError("Incompatible database version");
+            WindowManager.showError("Incompatible database version");
             return false;
         }
 
@@ -120,7 +109,7 @@ public class IOManager
         if (!directory.exists() && !directory.mkdir())
         {
             System.out.printf("IOManager.verify: Directory \"%s\" doesn't exist and can't be created\n", directory.getAbsolutePath());
-            showError(String.format("Cannot create managed folder \"%s\"", directory.getName()));
+            WindowManager.showError(String.format("Cannot create managed folder \"%s\"", directory.getName()));
             return false;
         }
 
@@ -129,7 +118,7 @@ public class IOManager
         if (!storage.exists() && !storage.mkdir())
         {
             System.out.println("IOManager.verify: Storage directory doesn't exist and can't be created");
-            showError("Storage directory does not exist");
+            WindowManager.showError("Storage directory does not exist");
             return false;
         }
 
@@ -141,20 +130,20 @@ public class IOManager
             {
                 if (!(database.createNewFile() && Database.createTables(directoryPath)))
                 {
-                    showError("Cannot create database");
+                    WindowManager.showError("Cannot create database");
                     return false;
                 }
             }
             catch (IOException | SecurityException exception)
             {
                 System.out.printf("IOManager.verify: %s\n", exception.toString());
-                showError("Cannot create database file");
+                WindowManager.showError("Cannot create database file");
                 return false;
             }
         }
         else if (!Database.isUpToDate(folder))
         {
-            showError("Incompatible database version");
+            WindowManager.showError("Incompatible database version");
             return false;
         }
 
@@ -193,140 +182,6 @@ public class IOManager
                 return false;
         }
         return true;
-    }
-
-    public static boolean confirmAction(String title, String header, String description)
-    {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle(title);
-        confirmation.setHeaderText(header);
-        confirmation.setContentText(description);
-        confirmation.setGraphic(null);
-        confirmation.getDialogPane().setMaxWidth(400);
-        confirmation.showAndWait();
-        return (confirmation.getResult() == ButtonType.OK);
-    }
-
-    public static void showError(String message)
-    {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(message);
-        alert.showAndWait();
-    }
-
-    // Open a new main window for the provided managed folder
-    public static void openFolder(ManagedFolder folder) { openFolder(folder, new Stage()); }
-
-    // Open the provided managed folder onto the given stage
-    public static void openFolder(ManagedFolder folder, Stage stage)
-    {
-        try
-        {
-            FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tagger-view.fxml"));
-            Scene scene = new Scene(fxmlLoader.load(), 850, 600);
-            TaggerController taggerController = fxmlLoader.getController();
-            taggerController.setFolder(folder);
-            scene.addEventFilter(KeyEvent.KEY_PRESSED, taggerController::keyEventHandler);
-
-            stage.titleProperty().bind(folder.nameProperty());
-            stage.setScene(scene);
-            stage.show();
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void manageFolders()
-    {
-        if (managedFoldersStage == null)
-        {
-            try
-            {
-                FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folders-view.fxml"));
-                Scene scene = new Scene(fxmlLoader.load());
-                managedFoldersStage = new Stage();
-                managedFoldersStage.setTitle("Managed Folders");
-                managedFoldersStage.setMinWidth(520);
-                managedFoldersStage.setMinHeight(400);
-                managedFoldersStage.setScene(scene);
-                managedFoldersStage.showAndWait();
-                managedFoldersStage = null;
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
-        else
-            managedFoldersStage.toFront();
-    }
-
-    public static void editManagedFolder(Window owner, ManagedFolder folder)
-    {
-        try
-        {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folder-editor-view.fxml"));
-            Scene scene = new Scene(fxmlLoader.load());
-            ((ManagedFolderEditorController) fxmlLoader.getController()).setFolders(folder);
-            Stage stage = new Stage();
-            stage.initOwner(owner);
-            stage.setMinWidth(400);
-            stage.setResizable(false);
-            stage.setTitle((folder != null) ? "Edit Folder" : "Create Folder");
-            stage.setScene(scene);
-            stage.showAndWait();
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // Create a window to select a tag from the provided TagNode tree (preselectedTag can be null)
-    public static TagNode selectTag(TagNode treeRoot, TagNode preselectedTag)
-    {
-        try
-        {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("tag-selector-view.fxml"));
-            Scene scene = new Scene(fxmlLoader.load());
-            TagSelectorController controller = fxmlLoader.getController();
-            controller.setTagNodes(treeRoot, preselectedTag);
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Tag Selector");
-            stage.setMinWidth(200);
-            stage.setMinHeight(200);
-            stage.setScene(scene);
-            stage.showAndWait();
-            return controller.getSelection();
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // Open a window to edit the provided TagNode
-    public static void editTag(Window owner, TagNode tag)
-    {
-        try
-        {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("tag-editor-view.fxml"));
-            Scene scene = new Scene(fxmlLoader.load());
-            ((TagEditorController) fxmlLoader.getController()).setTag(tag);
-            Stage stage = new Stage();
-            stage.initOwner(owner);
-            stage.setResizable(false);
-            stage.setTitle("Edit Tag");
-            stage.setScene(scene);
-            stage.showAndWait();
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException(e);
-        }
     }
 
     public static boolean deleteTag(TagNode tag)
@@ -373,7 +228,7 @@ public class IOManager
             else if (warning.getResult() == newTagButton)
             {
                 // If the user chose to re-tag the files, open a tag selector window and re-tag the files in the database with the user's selection
-                TagNode selection = IOManager.selectTag(tag.getRoot(), tag);
+                TagNode selection = WindowManager.selectTag(tag.getRoot(), tag);
                 if (selection != null)
                 {
                     for (String orphan : orphanedFiles)
@@ -494,7 +349,7 @@ public class IOManager
         // Alert the user which data this action deletes and ask for confirmation
         String header = String.format("Are you sure you want to delete the folder \"%s\"?", folder.getName());
         String description = "This will also delete all files and tags managed by this folder. This action cannot be reversed.";
-        if (IOManager.confirmAction("Delete Folder", header, description))
+        if (WindowManager.confirmationDialog("Delete Folder", header, description))
         {
             // Delete all the files in the storage subdirectory
             File storage = new File(formatPath(folder.getFullPath(), STORAGE_DIRECTORY_NAME));
@@ -566,7 +421,7 @@ public class IOManager
                 System.out.println("IOManager.renameFile: Unable to rename file");
         }
         else
-            showError("This file name is already taken");
+            WindowManager.showError("This file name is already taken");
 
         return false;
     }

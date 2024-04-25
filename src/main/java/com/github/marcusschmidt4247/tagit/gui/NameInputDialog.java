@@ -5,6 +5,7 @@
 
 package com.github.marcusschmidt4247.tagit.gui;
 
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ExtensionFilter;
 import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
@@ -59,20 +60,20 @@ public class NameInputDialog extends TextInputDialog
                         (type == Type.TAG && parent != null && !parent.hasChild(name)))
                         valid = true;
                     else if (type == Type.FILE)
-                        IOManager.showError("Unsupported file type");
+                        WindowManager.showError("Unsupported file type");
                     else
                     {
                         if (parent != null)
-                            IOManager.showError(String.format("\"%s\" already has a child tag \"%s\"", parent.getTag(), name));
+                            WindowManager.showError(String.format("\"%s\" already has a child tag \"%s\"", parent.getTag(), name));
                         else
                         {
                             System.out.println("NameInputDialog.showAndLoop: parent == null");
-                            IOManager.showError("Unable to create tag");
+                            WindowManager.showError("Unable to create tag");
                         }
                     }
                 }
                 else
-                    IOManager.showError("Name cannot contain slashes or quotes");
+                    WindowManager.showError("Name cannot contain slashes or quotes");
             }
         } while (name != null && !valid);
         return valid;

@@ -7,6 +7,7 @@ package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.TaggerApplication;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
 import com.github.marcusschmidt4247.tagit.gui.MediaControlView;
@@ -34,40 +35,23 @@ import java.util.Vector;
 
 public class TaggerController
 {
-    @FXML
-    private DynamicCheckTreeView tagTreeView;
-    @FXML
-    private DynamicCheckTreeView excludeTreeView;
-    @FXML
-    private DynamicCheckTreeView editTreeView;
-    @FXML
-    private SplitPane mainSplitPane;
-    @FXML
-    private AnchorPane contentPane;
-    @FXML
-    private AnchorPane editPane;
-    @FXML
-    private Label errorLabel;
-    @FXML
-    private Label fileNameLabel;
-    @FXML
-    private ImageView imageView;
-    @FXML
-    private MediaControlView mediaView;
-    @FXML
-    private ChoiceBox<String> criteriaChoiceBox;
-    @FXML
-    private ChoiceBox<String> sortChoiceBox;
-    @FXML
-    private CheckBox excludeCheckBox;
-    @FXML
-    private Button expandButton;
-    @FXML
-    private Button deselectButton;
-    @FXML
-    private Button editNameButton;
-    @FXML
-    private Button deleteFileButton;
+    @FXML private DynamicCheckTreeView tagTreeView;
+    @FXML private DynamicCheckTreeView excludeTreeView;
+    @FXML private DynamicCheckTreeView editTreeView;
+    @FXML private SplitPane mainSplitPane;
+    @FXML private AnchorPane contentPane;
+    @FXML private AnchorPane editPane;
+    @FXML private Label errorLabel;
+    @FXML private Label fileNameLabel;
+    @FXML private ImageView imageView;
+    @FXML private MediaControlView mediaView;
+    @FXML private ChoiceBox<String> criteriaChoiceBox;
+    @FXML private ChoiceBox<String> sortChoiceBox;
+    @FXML private CheckBox excludeCheckBox;
+    @FXML private Button expandButton;
+    @FXML private Button deselectButton;
+    @FXML private Button editNameButton;
+    @FXML private Button deleteFileButton;
 
     private TaggerModel taggerModel;
     private double editPanePos = 0.7;
@@ -172,7 +156,10 @@ public class TaggerController
     }
 
     @FXML
-    public void onManageFolders() { IOManager.manageFolders(); }
+    public void onManageFolders() { WindowManager.openFolderManager(); }
+
+    @FXML
+    public void onSwitchFolders() { WindowManager.switchFolder(mainSplitPane.getScene().getWindow(), taggerModel.getFolder()); }
 
     @FXML
     public void onToggleEdit()
@@ -240,7 +227,7 @@ public class TaggerController
     public void onDeleteFile()
     {
         String header = String.format("Are you sure you want to delete the file \"%s\"?", taggerModel.currentFile());
-        if (IOManager.confirmAction("Delete File", header, "This action cannot be reversed."))
+        if (WindowManager.confirmationDialog("Delete File", header, "This action cannot be reversed."))
         {
             taggerModel.deleteCurrentFile();
             refreshContentPane(taggerModel.currentFile());
@@ -401,7 +388,7 @@ public class TaggerController
                             if (Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile()).size() > 1)
                                 Database.deleteFileTag(taggerModel.currentFile(), node);
                             else
-                                IOManager.showError("File will be inaccessible without at least one tag.");
+                                WindowManager.showError("File will be inaccessible without at least one tag.");
                         }
                     }
                     else

@@ -19,6 +19,7 @@
     </padding>
     <MenuBar useSystemMenuBar="true">
         <Menu text="Folder">
+            <MenuItem text="Switch Folder" onAction="#onSwitchFolders"/>
             <MenuItem text="Manage Folders" onAction="#onManageFolders"/>
         </Menu>
     </MenuBar>

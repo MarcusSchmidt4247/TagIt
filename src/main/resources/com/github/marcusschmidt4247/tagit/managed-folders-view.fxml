@@ -24,12 +24,12 @@
             </columns>
         </TableView>
         <HBox spacing="5" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0">
-            <Button text="-" onAction="#onDeleteFolder"/>
-            <Button text="+" onAction="#onCreateFolder"/>
+            <Button fx:id="deleteButton" text="-" onAction="#onDeleteFolder"/>
+            <Button fx:id="createButton" text="+" onAction="#onCreateFolder"/>
         </HBox>
         <HBox spacing="5" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
-            <Button text="Edit" onAction="#onEditFolder"/>
-            <Button text="Open" onAction="#onOpenFolder"/>
+            <Button fx:id="editButton" text="Edit" onAction="#onEditFolder"/>
+            <Button fx:id="openButton" text="Open" onAction="#onOpenFolder"/>
         </HBox>
     </AnchorPane>
 </VBox>

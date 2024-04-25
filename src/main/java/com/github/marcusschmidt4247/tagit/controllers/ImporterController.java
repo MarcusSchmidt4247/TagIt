@@ -7,6 +7,7 @@ package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
 import com.github.marcusschmidt4247.tagit.gui.MediaControlView;
@@ -32,32 +33,20 @@ import java.util.Vector;
 
 public class ImporterController
 {
-    @FXML
-    private Pane contentPane;
-    @FXML
-    private ImageView imageView;
-    @FXML
-    private MediaControlView mediaView;
-    @FXML
-    private DynamicCheckTreeView tagTreeView;
+    @FXML private Pane contentPane;
+    @FXML private ImageView imageView;
+    @FXML private MediaControlView mediaView;
+    @FXML private DynamicCheckTreeView tagTreeView;
 
-    @FXML
-    private Label directoryLabel;
-    @FXML
-    private Label fileNameLabel;
-    @FXML
-    private Label tagLabel;
-    @FXML
-    private Label errorLabel;
+    @FXML private Label directoryLabel;
+    @FXML private Label fileNameLabel;
+    @FXML private Label tagLabel;
+    @FXML private Label errorLabel;
 
-    @FXML
-    private Button deselectButton;
-    @FXML
-    private Button prevButton;
-    @FXML
-    private Button nextButton;
-    @FXML
-    private Button importButton;
+    @FXML private Button deselectButton;
+    @FXML private Button prevButton;
+    @FXML private Button nextButton;
+    @FXML private Button importButton;
 
     private TaggerModel taggerModel;
     private ImporterModel importerModel;
@@ -207,7 +196,10 @@ public class ImporterController
     }
 
     @FXML
-    public void onManageFolders() { IOManager.manageFolders(); }
+    public void onManageFolders() { WindowManager.openFolderManager(); }
+
+    @FXML
+    public void onSwitchFolders() { WindowManager.switchFolder(contentPane.getScene().getWindow(), taggerModel.getFolder()); }
 
     @FXML
     public void onChooseDirectory()

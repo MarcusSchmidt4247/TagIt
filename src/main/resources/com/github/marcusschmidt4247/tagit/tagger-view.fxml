@@ -16,6 +16,7 @@
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.marcusschmidt4247.tagit.controllers.TaggerController" stylesheets="@stylesheets.css">
     <MenuBar useSystemMenuBar="true">
         <Menu text="Folder">
+            <MenuItem text="Switch Folder" onAction="#onSwitchFolders"/>
             <MenuItem text="Manage Folders" onAction="#onManageFolders"/>
         </Menu>
         <Menu text="Files">

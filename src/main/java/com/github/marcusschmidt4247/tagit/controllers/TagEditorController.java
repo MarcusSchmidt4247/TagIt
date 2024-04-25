@@ -7,6 +7,7 @@ package com.github.marcusschmidt4247.tagit.controllers;
 
 import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -14,10 +15,8 @@ import javafx.stage.Stage;
 
 public class TagEditorController
 {
-    @FXML
-    TextField nameField;
-    @FXML
-    Label parentageLabel;
+    @FXML TextField nameField;
+    @FXML Label parentageLabel;
 
     private TagNode tag = null;
     private TagNode currentParent;
@@ -36,7 +35,7 @@ public class TagEditorController
 
     public void onSelect()
     {
-        TagNode selection = IOManager.selectTag(tag.getRoot(), tag);
+        TagNode selection = WindowManager.selectTag(tag.getRoot(), tag);
         if (selection != null)
         {
             currentParent = selection;
@@ -48,17 +47,17 @@ public class TagEditorController
     {
         if (nameField.getText().isBlank())
         {
-            IOManager.showError("Name cannot be blank");
+            WindowManager.showError("Name cannot be blank");
             return;
         }
         else if (!IOManager.validInput(nameField.getText()))
         {
-            IOManager.showError("Name cannot contain slashes or quotes");
+            WindowManager.showError("Name cannot contain slashes or quotes");
             return;
         }
         else if (currentParent.hasChild(nameField.getText()))
         {
-            IOManager.showError(String.format("\"%s\" already has a child tag \"%s\"", currentParent.getTag(), nameField.getText()));
+            WindowManager.showError(String.format("\"%s\" already has a child tag \"%s\"", currentParent.getTag(), nameField.getText()));
             return;
         }
 
@@ -81,7 +80,7 @@ public class TagEditorController
     public void onDeleteButton()
     {
         String description = "All files tagged with this item will lose the tag, and all child tags will be deleted too. This action cannot be reversed.";
-        if (IOManager.confirmAction("Delete Tag", "Are you sure you want to delete this tag?", description))
+        if (WindowManager.confirmationDialog("Delete Tag", "Are you sure you want to delete this tag?", description))
         {
             if (IOManager.deleteTag(tag))
                 ((Stage) nameField.getScene().getWindow()).close();

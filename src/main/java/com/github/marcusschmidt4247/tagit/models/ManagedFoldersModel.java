@@ -7,6 +7,7 @@ package com.github.marcusschmidt4247.tagit.models;
 
 import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -75,7 +76,7 @@ public class ManagedFoldersModel
             folder.set(delta);
         }
         else
-            IOManager.showError("Failed to update folder");
+            WindowManager.showError("Failed to update folder");
     }
 
     // Delete the ManagedFolder and its database entry

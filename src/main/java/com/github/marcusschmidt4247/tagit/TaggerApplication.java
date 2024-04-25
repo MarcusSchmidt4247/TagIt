@@ -36,7 +36,7 @@ public class TaggerApplication extends Application
                 if (IOManager.verify(defaultFolder))
                 {
                     IOManager.getManagedFoldersModel().addFolder(defaultFolder);
-                    IOManager.openFolder(defaultFolder, stage);
+                    WindowManager.openFolder(defaultFolder, stage);
                 }
                 else
                     System.out.println("TaggerApplication.start: Failed to verify default folder");
@@ -52,7 +52,7 @@ public class TaggerApplication extends Application
                 }
 
                 if (IOManager.verify(folder))
-                    IOManager.openFolder(folder, stage);
+                    WindowManager.openFolder(folder, stage);
                 else
                     System.out.println("TaggerApplication.start: Failed to verify folder");
             }

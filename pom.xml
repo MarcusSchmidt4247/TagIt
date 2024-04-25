@@ -6,7 +6,7 @@
 
     <groupId>com.github.marcusschmidt4247</groupId>
     <artifactId>tagit</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.1.1</version>
     <name>TagIt</name>
 
     <properties>
