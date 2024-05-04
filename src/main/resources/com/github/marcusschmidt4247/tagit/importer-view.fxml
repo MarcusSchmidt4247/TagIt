@@ -7,10 +7,9 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.geometry.Insets?>
 <?import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView?>
-<?import com.github.marcusschmidt4247.tagit.gui.MediaControlView?>
+<?import com.github.marcusschmidt4247.tagit.gui.MultiMediaView?>
 
 <VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.marcusschmidt4247.tagit.controllers.ImporterController" stylesheets="@stylesheets.css"
       alignment="CENTER" spacing="10.0" maxWidth="Infinity" maxHeight="Infinity">
@@ -34,11 +33,7 @@
                 <Insets top="5.0"/>
             </padding>
             <Label fx:id="fileNameLabel">Current File:</Label>
-            <StackPane fx:id="contentPane" styleClass="outlined" VBox.vgrow="ALWAYS">
-                <Label fx:id="errorLabel"/>
-                <ImageView fx:id="imageView" preserveRatio="true"/>
-                <MediaControlView fx:id="mediaView" visible="false"/>
-            </StackPane>
+            <MultiMediaView fx:id="mediaView" styleClass="outlined" VBox.vgrow="ALWAYS"/>
             <!--CheckBox fx:id="copyCheckBox" text="Import copy of file"/-->
         </VBox>
         <!-- The right side of the window contains the import controls -->

@@ -6,8 +6,8 @@
 package com.github.marcusschmidt4247.tagit.gui;
 
 import com.github.marcusschmidt4247.tagit.WindowManager;
-import com.github.marcusschmidt4247.tagit.miscellaneous.ExtensionFilter;
 import com.github.marcusschmidt4247.tagit.IOManager;
+import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import javafx.scene.control.TextInputDialog;
 
@@ -56,7 +56,7 @@ public class NameInputDialog extends TextInputDialog
             {
                 if (IOManager.validInput(name))
                 {
-                    if ((type == Type.FILE && ExtensionFilter.validExtension(name)) ||
+                    if ((type == Type.FILE && FileTypes.isSupported(name)) ||
                         (type == Type.TAG && parent != null && !parent.hasChild(name)))
                         valid = true;
                     else if (type == Type.FILE)

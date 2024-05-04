@@ -5,7 +5,7 @@
 
 package com.github.marcusschmidt4247.tagit;
 
-import com.github.marcusschmidt4247.tagit.miscellaneous.ExtensionFilter;
+import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import com.github.marcusschmidt4247.tagit.models.ManagedFoldersModel;
@@ -258,10 +258,7 @@ public class IOManager
         File directory = new File(PATH);
         if (directory.isDirectory())
         {
-            try
-            {
-                return directory.listFiles(new ExtensionFilter());
-            }
+            try { return directory.listFiles((dir, name) -> FileTypes.isSupported(name)); }
             catch (SecurityException exception)
             {
                 System.out.printf("Database.getFilesInDir: Does not have permission to read files in directory \"%s\"", PATH);

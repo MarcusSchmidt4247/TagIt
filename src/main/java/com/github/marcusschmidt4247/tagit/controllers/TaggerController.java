@@ -9,8 +9,8 @@ import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.TaggerApplication;
 import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
+import com.github.marcusschmidt4247.tagit.gui.MultiMediaView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
-import com.github.marcusschmidt4247.tagit.gui.MediaControlView;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.SearchCriteria;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
@@ -21,8 +21,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
@@ -41,10 +39,8 @@ public class TaggerController
     @FXML private SplitPane mainSplitPane;
     @FXML private AnchorPane contentPane;
     @FXML private AnchorPane editPane;
-    @FXML private Label errorLabel;
     @FXML private Label fileNameLabel;
-    @FXML private ImageView imageView;
-    @FXML private MediaControlView mediaView;
+    @FXML private MultiMediaView mediaView;
     @FXML private ChoiceBox<String> criteriaChoiceBox;
     @FXML private ChoiceBox<String> sortChoiceBox;
     @FXML private CheckBox excludeCheckBox;
@@ -59,14 +55,6 @@ public class TaggerController
 
     public void initialize()
     {
-        // Set the image view to scale with the window
-        imageView.fitWidthProperty().bind(contentPane.widthProperty());
-        imageView.fitHeightProperty().bind(contentPane.heightProperty());
-
-        // Set the media view to scale with the window
-        mediaView.fitHeightProperty().bind(contentPane.heightProperty());
-        mediaView.fitWidthProperty().bind(contentPane.widthProperty());
-
         // Populate the sort method ChoiceBox, default to the first option, and create a listener to refresh the current files every time it's changed
         for (SearchCriteria.SortMethod method : SearchCriteria.SortMethod.values())
             sortChoiceBox.getItems().add(method.description);
@@ -96,7 +84,7 @@ public class TaggerController
     {
         taggerModel = new TaggerModel(folder);
 
-        mediaView.init();
+        mediaView.init(false);
 
         tagTreeView.init(taggerModel.getTreeRoot());
         tagTreeView.getCheckModel().getCheckedItems().addListener((ListChangeListener<TreeItem<String>>) change ->
@@ -264,49 +252,9 @@ public class TaggerController
     private void refreshContentPane(String fileName)
     {
         if (fileName != null)
-        {
-            String filePath = IOManager.getFilePath(taggerModel.getPath(), fileName);
-            if (fileName.toLowerCase().matches(".+[.](jpe?g|png)$"))
-            {
-                try (FileInputStream input = new FileInputStream(filePath))
-                {
-                    Image image = new Image(input);
-                    imageView.setImage(image);
-
-                    if (!imageView.isVisible())
-                        imageView.setVisible(true);
-                    if (mediaView.isVisible())
-                        mediaView.setVisibility(false);
-                    if (errorLabel.isVisible())
-                        errorLabel.setVisible(false);
-                }
-                catch(IOException e)
-                {
-                    errorLabel.setText(String.format("Unable to load image file \"%s\"", fileName));
-                    errorLabel.setVisible(true);
-                    imageView.setVisible(false);
-                    mediaView.setVisibility(false);
-                }
-            }
-            else if (fileName.toLowerCase().matches(".+[.](mp[34])$"))
-            {
-                mediaView.load(new File(filePath));
-
-                if (!mediaView.isVisible())
-                    mediaView.setVisibility(true);
-                if (imageView.isVisible())
-                    imageView.setVisible(false);
-                if (errorLabel.isVisible())
-                    imageView.setVisible(false);
-            }
-        }
+            mediaView.load(new File(IOManager.getFilePath(taggerModel.getPath(), fileName)));
         else
-        {
-            errorLabel.setText("No files selected");
-            errorLabel.setVisible(true);
-            imageView.setVisible(false);
-            mediaView.setVisibility(false);
-        }
+            mediaView.load(null);
 
         if (editEnabled)
             refreshEditPane();

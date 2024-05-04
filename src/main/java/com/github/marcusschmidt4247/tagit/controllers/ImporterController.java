@@ -9,20 +9,15 @@ import com.github.marcusschmidt4247.tagit.Database;
 import com.github.marcusschmidt4247.tagit.IOManager;
 import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
+import com.github.marcusschmidt4247.tagit.gui.MultiMediaView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
-import com.github.marcusschmidt4247.tagit.gui.MediaControlView;
 import com.github.marcusschmidt4247.tagit.gui.TreeViewMenuHandler;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import com.github.marcusschmidt4247.tagit.models.ImporterModel;
 import com.github.marcusschmidt4247.tagit.models.TaggerModel;
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.value.ObservableDoubleValue;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.Pane;
 import javafx.stage.DirectoryChooser;
 
 import java.io.*;
@@ -33,15 +28,12 @@ import java.util.Vector;
 
 public class ImporterController
 {
-    @FXML private Pane contentPane;
-    @FXML private ImageView imageView;
-    @FXML private MediaControlView mediaView;
+    @FXML private MultiMediaView mediaView;
     @FXML private DynamicCheckTreeView tagTreeView;
 
     @FXML private Label directoryLabel;
     @FXML private Label fileNameLabel;
     @FXML private Label tagLabel;
-    @FXML private Label errorLabel;
 
     @FXML private Button deselectButton;
     @FXML private Button prevButton;
@@ -54,16 +46,6 @@ public class ImporterController
     public void initialize()
     {
         importerModel = new ImporterModel();
-
-        /* Set the image view to scale with the window. Binding directly to the content pane's width and height leads to
-         * a slow, infinite growth because the content pane keeps trying to be slightly bigger because it has a border,
-         * so use a custom offset binding. */
-        imageView.fitHeightProperty().bind(new OffsetDoubleBinding(contentPane.heightProperty(), 10.0));
-        imageView.fitWidthProperty().bind(new OffsetDoubleBinding(contentPane.widthProperty(), 10.0));
-
-        // Set the media view to scale with the window
-        mediaView.fitHeightProperty().bind(new OffsetDoubleBinding(contentPane.heightProperty(), 10.0));
-        mediaView.fitWidthProperty().bind(new OffsetDoubleBinding(contentPane.widthProperty(), 10.0));
 
         importerModel.getFiles().addListener((ListChangeListener<File>) change ->
         {
@@ -118,7 +100,7 @@ public class ImporterController
         if (this.taggerModel == null)
         {
             this.taggerModel = taggerModel;
-            mediaView.init();
+            mediaView.init(true);
 
             // Initialize and add a listener to the (currently empty) list of checked items
             tagTreeView.init(taggerModel.getTreeRoot(), DynamicCheckTreeView.Mode.LEAF_CHECK);
@@ -199,7 +181,7 @@ public class ImporterController
     public void onManageFolders() { WindowManager.openFolderManager(); }
 
     @FXML
-    public void onSwitchFolders() { WindowManager.switchFolder(contentPane.getScene().getWindow(), taggerModel.getFolder()); }
+    public void onSwitchFolders() { WindowManager.switchFolder(mediaView.getScene().getWindow(), taggerModel.getFolder()); }
 
     @FXML
     public void onChooseDirectory()
@@ -307,77 +289,13 @@ public class ImporterController
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
             importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
-            if (errorLabel.isVisible())
-                errorLabel.setVisible(false);
-
             fileNameLabel.setText(String.format("Current File: %s", importerModel.getFiles().get(importerModel.importIndex).getName()));
-            if (importerModel.getFiles().get(importerModel.importIndex).getName().toLowerCase().matches(".+[.](jpe?g|png)$"))
-            {
-                try (FileInputStream input = new FileInputStream(importerModel.getFiles().get(importerModel.importIndex)))
-                {
-                    Image image = new Image(input);
-                    imageView.setImage(image);
-
-                    if (!imageView.isVisible())
-                        imageView.setVisible(true);
-                    if (mediaView.isVisible())
-                        mediaView.setVisibility(false);
-                }
-                catch (IOException e)
-                {
-                    errorLabel.setText(String.format("Unable to load file \"%s\"", importerModel.getFiles().get(importerModel.importIndex).getName()));
-                    errorLabel.setVisible(true);
-                    imageView.setVisible(false);
-                    mediaView.setVisibility(false);
-                    throw new RuntimeException(e);
-                }
-            }
-            else if (importerModel.getFiles().get(importerModel.importIndex).getName().toLowerCase().matches(".+[.](mp[34])$"))
-            {
-                mediaView.load(importerModel.getFiles().get(importerModel.importIndex));
-
-                if (!mediaView.isVisible())
-                    mediaView.setVisibility(true);
-                if (imageView.isVisible())
-                    imageView.setVisible(false);
-            }
+            mediaView.load(importerModel.getFiles().get(importerModel.importIndex));
         }
         else
         {
-            errorLabel.setText("No files to import");
-            errorLabel.setVisible(true);
             fileNameLabel.setText("Current File:");
-            imageView.setVisible(false);
-            mediaView.setVisibility(false);
-        }
-    }
-
-    //******************
-    // Private classes *
-    //******************
-
-    private static class OffsetDoubleBinding extends DoubleBinding
-    {
-        private final ObservableDoubleValue PROPERTY;
-        private final double OFFSET;
-        private double prevResult;
-
-        public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
-        {
-            PROPERTY = property;
-            bind(PROPERTY);
-            this.OFFSET = OFFSET;
-        }
-
-        @Override
-        protected double computeValue()
-        {
-            /* If the bound value is closer to this value than a quarter of the offset, then it must be decreasing
-             * quickly and should be given more room to shrink per frame */
-            double nextOffset = OFFSET;
-            if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
-                nextOffset *= 3;
-            return (prevResult = PROPERTY.doubleValue() - nextOffset);
+            mediaView.load(null);
         }
     }
 }

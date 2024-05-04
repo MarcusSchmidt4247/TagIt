@@ -7,11 +7,10 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.geometry.Insets?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView?>
-<?import com.github.marcusschmidt4247.tagit.gui.MediaControlView?>
+<?import com.github.marcusschmidt4247.tagit.gui.MultiMediaView?>
 
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.marcusschmidt4247.tagit.controllers.TaggerController" stylesheets="@stylesheets.css">
     <MenuBar useSystemMenuBar="true">
@@ -80,11 +79,7 @@
         </SplitPane>
         <!-- Middle pane shows content, if available -->
         <AnchorPane fx:id="contentPane" minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
-            <StackPane AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
-                <Label fx:id="errorLabel"/>
-                <ImageView fx:id="imageView" preserveRatio="true"/>
-                <MediaControlView fx:id="mediaView" visible="false"/>
-            </StackPane>
+            <MultiMediaView fx:id="mediaView" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0"/>
         </AnchorPane>
         <!-- Right pane is hidden by default and contains another tag selector to edit a file's tags -->
         <AnchorPane fx:id="editPane" minWidth="0.0" minHeight="0.0" maxHeight="Infinity" maxWidth="Infinity">
