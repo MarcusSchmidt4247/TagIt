@@ -6,7 +6,7 @@
 package com.github.marcusschmidt4247.tagit.gui;
 
 import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
-import javafx.beans.binding.DoubleBinding;
+import com.github.marcusschmidt4247.tagit.miscellaneous.OffsetDoubleBinding;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -51,10 +51,9 @@ public class MultiMediaView extends StackPane
 
         mediaControlView = new MediaControlView();
         mediaControlView.setVisible(false);
-        mediaControlView.fitHeightProperty().bind(heightBinding);
-        mediaControlView.fitWidthProperty().bind(widthBinding);
+        mediaControlView.prefHeightProperty().bind(heightBinding);
+        mediaControlView.prefWidthProperty().bind(widthBinding);
         getChildren().add(mediaControlView);
-        mediaControlView.init(); // must be initiated *after* being added to its parent
 
         documentView = new DocumentView();
         documentView.setVisible(false);
@@ -120,31 +119,5 @@ public class MultiMediaView extends StackPane
 
         if (mediaControlView.isVisible() != (fileType == FileTypes.Type.VIDEO))
             mediaControlView.setVisibility(fileType == FileTypes.Type.VIDEO);
-    }
-
-    // A class that binds two Double properties together with an offset
-    private static class OffsetDoubleBinding extends DoubleBinding
-    {
-        private final ObservableDoubleValue PROPERTY;
-        private final double OFFSET;
-        private double prevResult;
-
-        public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
-        {
-            PROPERTY = property;
-            bind(PROPERTY);
-            this.OFFSET = OFFSET;
-        }
-
-        @Override
-        protected double computeValue()
-        {
-            /* If the bound value is closer to this value than a quarter of the offset, then it must be decreasing
-             * quickly and should be given more room to shrink per frame */
-            double nextOffset = OFFSET;
-            if (PROPERTY.doubleValue() < prevResult + (OFFSET / 4))
-                nextOffset *= 3;
-            return (prevResult = PROPERTY.doubleValue() - nextOffset);
-        }
     }
 }

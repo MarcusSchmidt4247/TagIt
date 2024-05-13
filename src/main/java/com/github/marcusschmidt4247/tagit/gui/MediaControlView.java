@@ -26,21 +26,43 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.File;
 
-public class MediaControlView extends MediaView
+public class MediaControlView extends StackPane
 {
+    private final MediaView mediaView;
     private MediaPlayer mediaPlayer = null;
-    private Button playButton;
-    private Button volumeButton;
-    private Slider timeSlider;
-    private Slider volumeSlider;
-    private Label currentTime;
-    private Label totalTime;
+
+    private final Button playButton;
+    private final Button volumeButton;
+    private final Slider timeSlider;
+    private final Slider volumeSlider;
+    private final Label currentTime;
+    private final Label totalTime;
 
     private boolean mute = false;
     private double volume = 1.0;
+    private double mediaRatio = -1;
 
-    public void init()
+    public MediaControlView()
     {
+        super();
+
+        /* The MediaView cannot be managed by its parent StackPane *and* bound to its parent's dimensions or else
+         * it won't allow its parent to shrink. Instead, add listeners that update the MediaView's dimensions and
+         * then manually center it in the StackPane. */
+        mediaView = new MediaView();
+        mediaView.setManaged(false);
+        widthProperty().addListener((observableValue, number, t1) ->
+        {
+            mediaView.setFitWidth(getWidth());
+            centerMedia();
+        });
+        heightProperty().addListener((observableValue, number, t1) ->
+        {
+            mediaView.setFitHeight(getHeight());
+            centerMedia();
+        });
+        getChildren().add(mediaView);
+
         // Create a horizontal layout where the media player controls will be placed
         HBox controlBox = new HBox();
         controlBox.setAlignment(Pos.CENTER_LEFT);
@@ -145,10 +167,9 @@ public class MediaControlView extends MediaView
         bottomPos.setAlignment(Pos.BOTTOM_LEFT);
         bottomPos.getChildren().add(controlBox);
 
-        // Add these controls to the parent StackPane and create a listener that toggles their visibility based on mouse hover
-        StackPane pane = (StackPane) getParent();
-        pane.getChildren().add(bottomPos);
-        pane.hoverProperty().addListener((observableValue, aBoolean, t1) ->
+        // Add these controls to the StackPane and create a listener that toggles their visibility based on mouse hover
+        getChildren().add(bottomPos);
+        hoverProperty().addListener((observableValue, aBoolean, t1) ->
         {
             if (isVisible())
                 setControlsVisible(observableValue.getValue());
@@ -175,10 +196,26 @@ public class MediaControlView extends MediaView
                 currentTime.setText(formatTime(mediaPlayer.getCurrentTime()));
             }
         });
-        mediaPlayer.setOnReady(() -> totalTime.setText(String.format(" / %s", formatTime(mediaPlayer.getTotalDuration()))));
+        mediaPlayer.setOnReady(() ->
+        {
+            totalTime.setText(String.format(" / %s", formatTime(mediaPlayer.getTotalDuration())));
+            mediaRatio = (double) media.getWidth() / media.getHeight();
+            centerMedia();
+        });
         // Set the MediaPlayer to loop
         mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(mediaPlayer.getStartTime()));
-        setMediaPlayer(mediaPlayer);
+        mediaView.setMediaPlayer(mediaPlayer);
+    }
+
+    // Stop playing and free the current media's memory
+    public void unload()
+    {
+        if (mediaPlayer != null)
+        {
+            mediaPlayer.dispose();
+            mediaPlayer = null;
+            mediaRatio = -1;
+        }
     }
 
     public void setVisibility(boolean visible)
@@ -193,6 +230,34 @@ public class MediaControlView extends MediaView
             setControlsVisible(false);
             if (mediaPlayer != null)
                 mediaPlayer.dispose();
+        }
+    }
+
+    /* Manually center the MediaView's content in its parent StackPane. The MediaPlayer will preserve its content's aspect ratio, so
+     * perform a translation along the axis where the media cannot fill the empty space. */
+    private void centerMedia()
+    {
+        if (mediaPlayer != null)
+        {
+            Media media = mediaPlayer.getMedia();
+            if (media != null)
+            {
+                // If the StackPane currently has a wider aspect ratio than the media, the media will fill the vertical space and leave empty
+                // horizontal space, so center the media on the X-axis
+                if ((getWidth() / getHeight()) > mediaRatio)
+                {
+                    double mediaWidth = getHeight() * mediaRatio;
+                    mediaView.setTranslateX((getWidth() / 2.0) - (mediaWidth / 2.0));
+                    mediaView.setTranslateY(0.0);
+                }
+                // The opposite is true when the StackPane currently has a narrower aspect ratio, so center the media on the Y-axis
+                else
+                {
+                    mediaView.setTranslateX(0.0);
+                    double mediaHeight = getWidth() * (1.0 / mediaRatio);
+                    mediaView.setTranslateY((getHeight() / 2.0) - (mediaHeight / 2.0));
+                }
+            }
         }
     }
 
