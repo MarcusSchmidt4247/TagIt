@@ -73,6 +73,6 @@ The technique used for mixing TreeItem and CheckBoxTreeItem elements in a TreeVi
 
 ## Licenses
 
-This software is licensed under GNU GPLv3 (see LICENSE.txt) and uses third party libraries distributed under their own terms (see LICENSE-3RD-PARTY.txt).
+This software is licensed under GNU GPLv3 (see LICENSE.txt) and uses third party libraries distributed under their own terms (see NOTICE.txt and LICENSE-3RD-PARTY.txt).
 
-[^1]: Supported file types are currently limited to JPG, PNG, MP3, and MP4.
+[^1]: Supported file types are DOCX, TXT, JPG, PNG, MP3, and MP4.

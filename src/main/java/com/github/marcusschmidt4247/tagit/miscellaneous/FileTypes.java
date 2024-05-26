@@ -15,7 +15,7 @@ public class FileTypes
         if (dotIndex != -1)
         {
             String extension = filename.substring(dotIndex).toLowerCase();
-            if (extension.matches("[.](txt)$"))
+            if (extension.matches("[.](txt|docx)$"))
                 return Type.TEXT;
             else if (extension.matches("[.](jpe?g|png)$"))
                 return Type.IMAGE;

@@ -5,34 +5,39 @@
 
 package com.github.marcusschmidt4247.tagit.gui;
 
+import com.github.marcusschmidt4247.tagit.parsers.DocxParser;
+import com.github.marcusschmidt4247.tagit.parsers.Parser;
+import com.github.marcusschmidt4247.tagit.parsers.ParserResults;
+import com.github.marcusschmidt4247.tagit.parsers.TxtParser;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.TextFlow;
+import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.kordamp.ikonli.javafx.FontIcon;
-
 import java.io.*;
 
 public class DocumentView extends VBox
 {
+    private static final Font defaultFont = Font.font("Verdana", 14);
     private static final int MAX_CHAR_PER_PAGE = 3000;
 
-    private enum Type { TXT, UNSUPPORTED }
+    private enum Type { TXT, DOCX, UNSUPPORTED }
 
     private final ScrollPane contentPane;
-    private final Label content;
+    private final TextFlow content;
     private final HBox pageControlsLayout;
     private final Button prevPageButton;
     private final Button nextPageButton;
 
-    private FileReader fileReader = null;
+    private Parser parser = null;
     private File file = null;
     private Type type = Type.UNSUPPORTED;
-    private int nextPage = 0;
     private int lastPage = -1;
 
     public DocumentView()
@@ -46,10 +51,9 @@ public class DocumentView extends VBox
         setVgrow(contentPane, Priority.ALWAYS);
 
         // Add a label to the scrollable pane that will display the content
-        content = new Label("This document is empty");
+        content = new TextFlow();
         content.prefWidthProperty().bind(contentPane.widthProperty());
         content.setPadding(new Insets(5, 10, 0, 10));
-        content.setWrapText(true);
         contentPane.setContent(content);
 
         // Create an HBox with controls for changing the document page
@@ -86,6 +90,8 @@ public class DocumentView extends VBox
             String extension = file.getName().substring(dotIndex).toLowerCase();
             if (extension.equals(".txt"))
                 type = Type.TXT;
+            else if (extension.equals(".docx"))
+                type = Type.DOCX;
             else
                 System.out.printf("DocumentView.load: Unrecognized file extension \"%s\"\n", extension);
         }
@@ -94,181 +100,102 @@ public class DocumentView extends VBox
 
         // Show the first page
         if (type != Type.UNSUPPORTED)
-            viewPage(nextPage);
+            viewPage();
     }
 
     // When the previous file is no longer needed, close the file reader and set file attributes to the defaults
     public void close()
     {
-        if (fileReader != null)
+        if (parser != null)
         {
-            try
-            {
-                fileReader.close();
-                fileReader = null;
-            }
-            catch (IOException exception)
-            {
-                System.out.println("DocumentView.close: Failed to close fileReader");
-            }
+            parser.close();
+            parser = null;
         }
 
         this.file = null;
         type = Type.UNSUPPORTED;
-        nextPage = 0;
         lastPage = -1;
     }
 
     // Move to the document's next page
     private void onNextPage()
     {
-        if (file != null && (lastPage == -1 || nextPage <= lastPage))
-            viewPage(nextPage);
+        if (file != null && (lastPage == -1 || parser.getNextPage() <= lastPage))
+            viewPage();
     }
 
     // Move to the document's previous page
     private void onPrevPage()
     {
-        if (file != null && nextPage > 1)
-            viewPage(nextPage - 2);
+        if (file != null && parser.getNextPage() > 1)
+            viewPage(parser.getNextPage() - 2);
     }
 
-    // Show the page in the document with the provided index
+    // Show the next page in the document
+    private void viewPage() { viewPage(-1); }
+
+    // Show the page in the document with the provided index (-1 defaults to the next page)
     private void viewPage(int index)
     {
-        if (type == Type.UNSUPPORTED || (fileReader == null && !openFileReader()))
+        if (type == Type.UNSUPPORTED || !accessFile())
             return;
 
         // Reset the scrollbar to the top of the new page
         contentPane.setVvalue(0);
 
         // Unless reading the next page in the document, move the file reader to its new location
-        if (index != nextPage)
-            moveToPage(index);
-
-        // Parse the file for this page of content and display it with the content label
-        String pageContents = readNextPage();
-        if (pageContents != null)
-            content.setText(pageContents);
-
-        // Disable the button to go to the next page only when on the last page
-        if (lastPage != -1 && nextPage > lastPage)
-            nextPageButton.setDisable(true);
-        else if (nextPageButton.isDisabled())
-            nextPageButton.setDisable(false);
-
-        // Disable the button to go to the previous page only when on the first page
-        if (nextPage == 1)
-            prevPageButton.setDisable(true);
-        else if (prevPageButton.isDisabled())
-            prevPageButton.setDisable(false);
-    }
-
-    // Move the file reader to the start of the given page in the file
-    private void moveToPage(int targetPage)
-    {
-        if (fileReader == null)
+        if (index == -1 || parser.setNextPage(index, MAX_CHAR_PER_PAGE))
         {
-            System.out.println("DocumentView.moveToPage: fileReader is null");
-            return;
-        }
-
-        try
-        {
-            // Unless reading a future page, reset the file reader to the beginning of the file
-            if (targetPage < nextPage)
-                resetFileReader();
-
-            // Move forward one page at a time until the start of the target page has been reached
-            while (nextPage < targetPage)
+            ParserResults results = parser.readNextPage(defaultFont, MAX_CHAR_PER_PAGE);
+            if (results == null)
+                lastPage = parser.getNextPage() - 1;
+            else
             {
-                long skipped = fileReader.skip(MAX_CHAR_PER_PAGE);
-                if (skipped == MAX_CHAR_PER_PAGE)
-                    nextPage++;
-                else
+                if (results.isEndOfFile())
                 {
-                    // If less than a full page could be skipped, then either this or the previously read page must be the last one
-                    if (skipped == 0)
-                        lastPage = nextPage - 1;
-                    else
-                        lastPage = nextPage;
-
-                    // In order to go back to the start of the last full page, reset again and call another move to the last page
-                    resetFileReader();
-                    moveToPage(lastPage);
-                    return;
-                }
-            }
-        }
-        catch (IOException exception)
-        {
-            throw new RuntimeException(exception);
-        }
-    }
-
-    // Parse raw file data at the file reader's current location into the next full page of text
-    private String readNextPage()
-    {
-        if (fileReader == null)
-        {
-            System.out.println("DocumentView.parseFile: fileReader is null");
-            return null;
-        }
-
-        try
-        {
-            // Attempt to read the maximum number of characters for a page
-            char[] buffer = new char[MAX_CHAR_PER_PAGE];
-            int length = fileReader.read(buffer, 0, MAX_CHAR_PER_PAGE);
-            if (length != -1)
-            {
-                // If less than a full page was able to be read, mark that this page must be the last one
-                if (length < MAX_CHAR_PER_PAGE)
-                {
-                    lastPage = nextPage;
+                    lastPage = parser.getNextPage();
                     // If the document is a single page, hide the page controls
                     if (lastPage == 0)
                         pageControlsLayout.setVisible(false);
                 }
+                content.getChildren().setAll(results.getNodes());
+            }
 
-                nextPage++;
-                return new String(buffer, 0, length);
-            }
-            else
-            {
-                // If there was nothing to be read, the previous page must be the last one
-                lastPage = nextPage - 1;
-                System.out.println("DocumentView.parseFile: Already reached EOF");
-                return null;
-            }
+            // Disable the button to go to the next page only when on the last page
+            if (lastPage != -1 && parser.getNextPage() > lastPage)
+                nextPageButton.setDisable(true);
+            else if (nextPageButton.isDisabled())
+                nextPageButton.setDisable(false);
+
+            // Disable the button to go to the previous page only when on the first page
+            if (parser.getNextPage() == 1)
+                prevPageButton.setDisable(true);
+            else if (prevPageButton.isDisabled())
+                prevPageButton.setDisable(false);
         }
-        catch (IOException exception)
-        {
-            throw new RuntimeException(exception);
-        }
+        else
+            System.out.printf("DocumentView.viewPage: Failed to move to page %d\n", index);
     }
 
-    private boolean openFileReader()
+    private boolean accessFile()
     {
         try
         {
-            fileReader = new FileReader(file);
+            // If the appropriate accessor for the current file type is not open, then open it
+            if (parser == null)
+            {
+                if (type == Type.TXT)
+                    parser = new TxtParser(file);
+                else if (type == Type.DOCX)
+                    parser = new DocxParser(file);
+            }
+
             return true;
         }
-        catch (FileNotFoundException exception)
+        catch (FileNotFoundException | Docx4JException exception)
         {
-            System.out.printf("DocumentView.openFileReader: %s\n", exception.toString());
+            System.out.printf("DocumentView.accessFile: %s\n", exception.toString());
             return false;
-        }
-    }
-
-    private void resetFileReader() throws IOException
-    {
-        if (fileReader != null)
-        {
-            nextPage = 0;
-            fileReader.close();
-            openFileReader();
         }
     }
 }
