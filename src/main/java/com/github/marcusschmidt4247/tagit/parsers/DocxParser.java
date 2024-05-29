@@ -29,16 +29,44 @@ public class DocxParser extends Parser
     private int nextPage;
     public int getNextPage() { return nextPage; }
 
+    private record PageStart(String paraId, int offset) { }
+    private final Vector<PageStart> pages = new Vector<>();
+
     public DocxParser(File file) throws Docx4JException
     {
         mainDocument = Docx4J.load(file);
         nextPage = 0;
+        pages.add(new PageStart(null, 0));
     }
 
     @Override
     public boolean setNextPage(int targetPage, final int maxChars)
     {
-        this.nextPage = targetPage;
+        // If the target page is already indexed, the 'nextPage' variable can just be set
+        nextPage = targetPage;
+        if (targetPage >= pages.size())
+        {
+            // Otherwise, index new pages until the target page (or end of file) has been reached
+            Body body = mainDocument.getMainDocumentPart().getJaxbElement().getBody();
+            new TraversalUtil(body, new DocxTraversalCallback(maxChars, pages.getLast())
+            {
+                @Override void newPage(PageStart pageStart)
+                {
+                    pages.add(pageStart);
+                    pageLen = 0;
+                }
+
+                @Override void newParagraph() { }
+
+                @Override void newRun(R run) { }
+
+                @Override void newText(String text) { }
+
+                @Override void endOfFile() { nextPage = pages.size() - 1; }
+
+                @Override boolean finished() { return (targetPage < pages.size()); }
+            });
+        }
         return true;
     }
 
@@ -50,92 +78,55 @@ public class DocxParser extends Parser
     public ParserResults readNextPage(final Font font, final int maxChars)
     {
         Vector<Text> nodes = new Vector<>();
-        boolean[] eof = new boolean[1]; // array or holder class needed so that a reference can be passed-by-value
+        boolean[] eof = new boolean[1]; // array or holder class is needed so that a reference can be passed-by-value
         try
         {
             Body body = mainDocument.getMainDocumentPart().getJaxbElement().getBody();
-            new TraversalUtil(body, new TraversalUtil.Callback()
+            new TraversalUtil(body, new DocxTraversalCallback(maxChars, pages.get(nextPage))
             {
-                int len = 0;
-                private boolean firstParagraph = true;
                 private javafx.scene.text.Text nextRun = null;
 
+                @Override void newPage(PageStart pageStart) { pages.add(pageStart); }
+
                 @Override
-                public List<Object> apply(Object object)
+                void newParagraph()
                 {
-                    object = XmlUtils.unwrap(object);
-
-                    // At the start of a new paragraph, insert a new line into the list of nodes unless it's the first paragraph
-                    if (object instanceof org.docx4j.wml.P)
-                    {
-                        if (firstParagraph)
-                            firstParagraph = false;
-                        else
-                            nodes.add(new javafx.scene.text.Text("\n"));
-                    }
-                    // At the start of a new run, prepare a next 'nextRun' object
-                    else if (object instanceof org.docx4j.wml.R)
-                    {
-                        nextRun = new javafx.scene.text.Text();
-
-                        RPr properties = ((R) object).getRPr();
-                        if (properties != null)
-                        {
-                            FontPosture italic = FontPosture.REGULAR;
-                            if (properties.getI() != null && properties.getI().isVal())
-                                italic = FontPosture.ITALIC;
-
-                            FontWeight bold = FontWeight.NORMAL;
-                            if (properties.getB() != null && properties.getB().isVal())
-                                bold = FontWeight.BOLD;
-
-                            nextRun.setFont(Font.font(font.getName(), bold, italic, font.getSize()));
-                        }
-                        else
-                            nextRun.setFont(font);
-                    }
-                    // At the start of text, insert the text into 'nextRun' and add it to the list of nodes
-                    else if (object instanceof org.docx4j.wml.Text)
-                    {
-                        String text = ((org.docx4j.wml.Text) object).getValue();
-                        if (len + text.length() > maxChars)
-                            text = text.substring(0, text.length() - (len + text.length() - maxChars));
-                        len += text.length();
-
-                        nextRun.setText(text);
-                        nodes.add(nextRun);
-                    }
-
-                    return null;
+                    if (!nodes.isEmpty())
+                        nodes.add(new javafx.scene.text.Text("\n"));
                 }
 
                 @Override
-                public void walkJAXBElements(Object parent)
+                void newRun(R run)
                 {
-                    List<Object> children = getChildren(parent);
-                    if (children != null)
+                    nextRun = new javafx.scene.text.Text();
+
+                    RPr properties = run.getRPr();
+                    if (properties != null)
                     {
-                        for (Object child : children)
-                        {
-                            if (len >= maxChars)
-                                return;
+                        FontPosture italic = FontPosture.REGULAR;
+                        if (properties.getI() != null && properties.getI().isVal())
+                            italic = FontPosture.ITALIC;
 
-                            this.apply(child);
+                        FontWeight bold = FontWeight.NORMAL;
+                        if (properties.getB() != null && properties.getB().isVal())
+                            bold = FontWeight.BOLD;
 
-                            child = XmlUtils.unwrap(child);
-                            if (this.shouldTraverse(child))
-                                walkJAXBElements(child);
-                        }
-
-                        // If the last child of the document body has been read, then the end of file has been reached
-                        if (parent instanceof Body)
-                            eof[0] = true;
+                        nextRun.setFont(Font.font(font.getName(), bold, italic, font.getSize()));
                     }
+                    else
+                        nextRun.setFont(font);
                 }
 
-                @Override public List<Object> getChildren(Object o) { return TraversalUtil.getChildrenImpl(o); }
+                @Override
+                void newText(String text)
+                {
+                    nextRun.setText(text);
+                    nodes.add(nextRun);
+                }
 
-                @Override public boolean shouldTraverse(Object o) { return true; }
+                @Override void endOfFile() { eof[0] = true; }
+
+                @Override boolean finished() { return pageLen >= maxChars; }
             });
         }
         catch (Exception e) { throw new RuntimeException(e); }
@@ -145,4 +136,143 @@ public class DocxParser extends Parser
     }
 
     @Override public void close() { }
+
+    private abstract static class DocxTraversalCallback implements TraversalUtil.Callback
+    {
+        protected int pageLen = 0;
+        private final int maxPageLen;
+
+        private final PageStart startPage;
+        private boolean traversing;
+
+        private String paraId;
+        private int paraOffset = 0;
+
+        public DocxTraversalCallback(final int maxPageLen, final PageStart startPage)
+        {
+            super();
+            this.maxPageLen = maxPageLen;
+            this.startPage = startPage;
+            paraId = startPage.paraId;
+            traversing = (startPage.paraId != null);
+        }
+
+        // Handler functions that need to be implemented by subclasses
+        abstract void newPage(PageStart pageStart);
+        abstract void newParagraph();
+        abstract void newRun(R run);
+        abstract void newText(String text);
+        abstract void endOfFile();
+        abstract boolean finished();
+
+        @Override
+        public List<Object> apply(Object object)
+        {
+            object = XmlUtils.unwrap(object);
+
+            // Skip objects until we find the first paragraph of the start page
+            if (traversing)
+            {
+                if (object instanceof org.docx4j.wml.P && startPage.paraId.equals(((org.docx4j.wml.P) object).getParaId()))
+                    traversing = false;
+            }
+            else
+            {
+                if (object instanceof org.docx4j.wml.P)
+                {
+                    paraId = ((org.docx4j.wml.P) object).getParaId();
+                    paraOffset = 0;
+
+                    newParagraph();
+                }
+                else if (object instanceof org.docx4j.wml.R)
+                    newRun((R) object);
+                else if (object instanceof org.docx4j.wml.Text)
+                {
+                    String text = ((org.docx4j.wml.Text) object).getValue();
+
+                    // If this text is in the first paragraph of the start page
+                    if (paraId.equals(startPage.paraId))
+                    {
+                        // Don't register any of this text if it is entirely contained in a part of the paragraph on the previous page
+                        if (startPage.offset > paraOffset + text.length())
+                        {
+                            paraOffset += text.length();
+                            return null;
+                        }
+                        // If any of the text does reach the start page, cut off the beginning
+                        else if (startPage.offset > paraOffset)
+                        {
+                            text = text.substring(startPage.offset - paraOffset);
+                            paraOffset = startPage.offset;
+                        }
+                    }
+
+                    processText(text);
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        public void walkJAXBElements(Object parent)
+        {
+            List<Object> children = getChildren(parent);
+            if (children != null)
+            {
+                for (Object child : children)
+                {
+                    if (finished())
+                        return;
+
+                    this.apply(child);
+
+                    child = XmlUtils.unwrap(child);
+                    if (this.shouldTraverse(child))
+                        walkJAXBElements(child);
+                }
+
+                // If every child of the document body has been traversed without satisfying the finished condition, the end of file must have been reached
+                if (parent instanceof Body && !finished())
+                    endOfFile();
+            }
+        }
+
+        @Override public List<Object> getChildren(Object o) { return TraversalUtil.getChildrenImpl(o); }
+
+        @Override public boolean shouldTraverse(Object o) { return true; }
+
+        private void processText(String text)
+        {
+            int len = text.length();
+
+            // If this text will overflow to the next page, split it at the end of the page
+            String[] parts = null;
+            if (pageLen + text.length() >= maxPageLen)
+            {
+                len = maxPageLen - pageLen;
+                parts = new String[2];
+                parts[0] = text.substring(0, len);
+                parts[1] = text.substring(len);
+            }
+
+            // Alert the handler for new text
+            newText((parts == null) ? text : parts[0]);
+
+            // Update the length of the current page and the location in the current paragraph to reflect the added text
+            pageLen += len;
+            paraOffset += len;
+
+            // If there's more of this text that overflows to the next page
+            if (parts != null)
+            {
+                // Alert the handler for the start of a new page
+                newPage(new PageStart(paraId, paraOffset));
+                // Unless the conditions have been met to stop processing the file, process the text on the next page
+                if (!finished())
+                    processText(parts[1]);
+            }
+        }
+    }
 }

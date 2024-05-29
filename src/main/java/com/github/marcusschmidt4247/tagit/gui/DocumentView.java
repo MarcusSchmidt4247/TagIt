@@ -153,7 +153,7 @@ public class DocumentView extends VBox
             {
                 if (results.isEndOfFile())
                 {
-                    lastPage = parser.getNextPage();
+                    lastPage = parser.getNextPage() - 1;
                     // If the document is a single page, hide the page controls
                     if (lastPage == 0)
                         pageControlsLayout.setVisible(false);
