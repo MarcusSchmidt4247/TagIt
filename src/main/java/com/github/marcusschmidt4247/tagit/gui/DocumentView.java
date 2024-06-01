@@ -17,7 +17,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
-import javafx.scene.text.TextFlow;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.kordamp.ikonli.javafx.FontIcon;
 import java.io.*;
@@ -29,8 +28,8 @@ public class DocumentView extends VBox
 
     private enum Type { TXT, DOCX, UNSUPPORTED }
 
-    private final ScrollPane contentPane;
-    private final TextFlow content;
+    private final ScrollPane scrollPane;
+    private final VBox contentPane;
     private final HBox pageControlsLayout;
     private final Button prevPageButton;
     private final Button nextPageButton;
@@ -44,17 +43,17 @@ public class DocumentView extends VBox
     {
         super();
 
-        // Add the scrollable content pane
-        contentPane = new ScrollPane();
-        contentPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        getChildren().add(contentPane);
-        setVgrow(contentPane, Priority.ALWAYS);
+        // Add the scrollable pane
+        scrollPane = new ScrollPane();
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        getChildren().add(scrollPane);
+        setVgrow(scrollPane, Priority.ALWAYS);
 
-        // Add a label to the scrollable pane that will display the content
-        content = new TextFlow();
-        content.prefWidthProperty().bind(contentPane.widthProperty());
-        content.setPadding(new Insets(5, 10, 0, 10));
-        contentPane.setContent(content);
+        // Add the pane where TextFlows containing the document's content will be added
+        contentPane = new VBox();
+        contentPane.prefWidthProperty().bind(scrollPane.widthProperty());
+        contentPane.setPadding(new Insets(5, 10, 0, 10));
+        scrollPane.setContent(contentPane);
 
         // Create an HBox with controls for changing the document page
         pageControlsLayout = new HBox();
@@ -141,7 +140,7 @@ public class DocumentView extends VBox
             return;
 
         // Reset the scrollbar to the top of the new page
-        contentPane.setVvalue(0);
+        scrollPane.setVvalue(0);
 
         // Unless reading the next page in the document, move the file reader to its new location
         if (index == -1 || parser.setNextPage(index, MAX_CHAR_PER_PAGE))
@@ -158,7 +157,12 @@ public class DocumentView extends VBox
                     if (lastPage == 0)
                         pageControlsLayout.setVisible(false);
                 }
-                content.getChildren().setAll(results.getNodes());
+                contentPane.getChildren().clear();
+                results.getNodes().forEach(node ->
+                {
+                    node.prefWidthProperty().bind(contentPane.widthProperty());
+                    contentPane.getChildren().add(node);
+                });
             }
 
             // Disable the button to go to the next page only when on the last page

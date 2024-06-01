@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Vector;
 
 public class TxtParser extends Parser
 {
@@ -81,15 +80,12 @@ public class TxtParser extends Parser
             if (length != -1)
             {
                 nextPage++;
-
                 // If less than a full page was able to be read, mark that this page must be the last one
                 boolean eof = (length < maxChars);
 
-                Vector<Text> nodes = new Vector<>();
                 Text content = new Text(new String(buffer, 0, length));
                 content.setFont(font);
-                nodes.add(content);
-                return new ParserResults(nodes, eof);
+                return new ParserResults(content, eof);
             }
             else
             {
