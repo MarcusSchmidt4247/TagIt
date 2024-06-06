@@ -46,12 +46,12 @@ public class DocumentView extends VBox
         // Add the scrollable pane
         scrollPane = new ScrollPane();
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setFitToWidth(true);
         getChildren().add(scrollPane);
         setVgrow(scrollPane, Priority.ALWAYS);
 
         // Add the pane where TextFlows containing the document's content will be added
         contentPane = new VBox();
-        contentPane.prefWidthProperty().bind(scrollPane.widthProperty());
         contentPane.setPadding(new Insets(5, 10, 0, 10));
         scrollPane.setContent(contentPane);
 

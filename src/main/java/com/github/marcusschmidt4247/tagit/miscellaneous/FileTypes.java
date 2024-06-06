@@ -11,16 +11,24 @@ public class FileTypes
 
     public static Type getType(String filename)
     {
-        int dotIndex = filename.lastIndexOf('.');
-        if (dotIndex != -1)
+        // Check the file's name for the text file type (cannot begin with "~$" and must end in a valid extension)
+        String name = filename.toLowerCase();
+        if (name.matches("^(?!~[$]).+[.](txt|docx)$"))
+            return Type.TEXT;
+        else
         {
-            String extension = filename.substring(dotIndex).toLowerCase();
-            if (extension.matches("[.](txt|docx)$"))
-                return Type.TEXT;
-            else if (extension.matches("[.](jpe?g|png)$"))
-                return Type.IMAGE;
-            else if (extension.matches("[.](mp[34])$"))
-                return Type.VIDEO;
+            // Check only the file's extension for the other file types
+            int dotIndex = name.lastIndexOf('.');
+            if (dotIndex != -1)
+            {
+                String extension = name.substring(dotIndex);
+                if (extension.matches("[.](jpe?g|png)$"))
+                    return Type.IMAGE;
+                else if (extension.matches("[.](mp[34])$"))
+                    return Type.VIDEO;
+            }
+            else
+                System.out.printf("FileTypes.getType: File \"%s\" has no extension\n", filename);
         }
 
         return Type.UNSUPPORTED;

@@ -5,6 +5,7 @@
 
 package com.github.marcusschmidt4247.tagit.parsers;
 
+import javafx.geometry.Insets;
 import javafx.scene.text.*;
 import javafx.scene.text.Text;
 import org.docx4j.Docx4J;
@@ -40,16 +41,19 @@ public class DocxParser extends Parser
         pages.add(new PageStart(null, 0));
     }
 
+    // Reference: https://github.com/plutext/docx4j/blob/VERSION_11_4_12/docx4j-samples-docx4j/src/main/java/org/docx4j/samples/DisplayMainDocumentPartXml.java
+    public void logParts() { System.out.println(XmlUtils.marshaltoString(mainDocument.getMainDocumentPart().getJaxbElement(), true, true)); }
+
     @Override
     public boolean setNextPage(int targetPage, final int maxChars)
     {
+        boolean successful = true;
         // If the target page is already indexed, the 'nextPage' variable can just be set
         nextPage = targetPage;
+        // Otherwise, index new pages until the target page (or end of file) has been reached
         if (targetPage >= pages.size())
         {
-            // Otherwise, index new pages until the target page (or end of file) has been reached
-            Body body = mainDocument.getMainDocumentPart().getJaxbElement().getBody();
-            new TraversalUtil(body, new DocxTraversalCallback(maxChars, pages.getLast())
+            successful = traverseDocument(maxChars, new DocxTraversalCallback(maxChars, pages.getLast())
             {
                 @Override void newPage(PageStart pageStart)
                 {
@@ -57,24 +61,13 @@ public class DocxParser extends Parser
                     pageLen = 0;
                 }
 
-                @Override void newParagraph(P paragraph, boolean continuing) { }
-
-                @Override void endParagraph(P paragraph) { }
-
-                @Override void newRun(R run) { }
-
-                @Override void newText(String text) { }
-
                 @Override void endOfFile() { nextPage = pages.size() - 1; }
 
                 @Override boolean finished() { return (targetPage < pages.size()); }
             });
         }
-        return true;
+        return successful;
     }
-
-    // Reference: https://github.com/plutext/docx4j/blob/VERSION_11_4_12/docx4j-samples-docx4j/src/main/java/org/docx4j/samples/DisplayMainDocumentPartXml.java
-    public void logParts() { System.out.println(XmlUtils.marshaltoString(mainDocument.getMainDocumentPart().getJaxbElement(), true, true)); }
 
     // Reference: https://github.com/plutext/docx4j/blob/master/docx4j-samples-docx4j/src/main/java/org/docx4j/samples/OpenMainDocumentAndTraverse.java
     @Override
@@ -82,251 +75,322 @@ public class DocxParser extends Parser
     {
         Vector<TextFlow> flows = new Vector<>();
         boolean[] eof = new boolean[1]; // array or holder class is needed so that a reference can be passed-by-value
-        try
+
+        boolean successful = traverseDocument(maxChars, new DocxTraversalCallback(maxChars, pages.get(nextPage))
         {
-            Body body = mainDocument.getMainDocumentPart().getJaxbElement().getBody();
-            new TraversalUtil(body, new DocxTraversalCallback(maxChars, pages.get(nextPage))
+            private TextFlow currentFlow;
+            private Text currentRun;
+            private double carryoverSpacing;
+
+            @Override
+            public void init(PageStart startPage)
             {
-                private TextFlow currentFlow = new TextFlow();
-                private Text currentRun = null;
-                private double carryoverSpacing = 0.0;
+                super.init(startPage);
+                currentFlow = new TextFlow();
+                currentRun = null;
+                carryoverSpacing = 0.0;
+            }
 
-                @Override void newPage(PageStart pageStart)
-                {
-                    // Only record the start of a new page if it has not been already (recall that after page 0 is read, the start of both page 0 and 1 have been recorded)
-                    if (nextPage + 1 >= pages.size())
+            @Override
+            void newPage(PageStart pageStart)
+            {
+                // Only record the start of a new page if it has not been already (recall that after page 0 is read, the start of both page 0 and 1 have been recorded)
+                if (nextPage + 1 >= pages.size())
                         pages.add(pageStart);
-                }
+            }
 
-                @Override
-                void newParagraph(P paragraph, boolean continuing)
+            @Override
+            void newParagraph(P paragraph, boolean continuing)
+            {
+                StringBuilder newLine = new StringBuilder();
+
+                PPr properties = paragraph.getPPr();
+                // If no paragraph properties are listed, set them to the defaults
+                if (properties == null)
+                    setFlowProperties(TextAlignment.LEFT, 0.0, 0.0, 0.0);
+                else
                 {
-                    StringBuilder newLine = new StringBuilder();
+                    // Check for paragraph alignment
+                    TextAlignment alignment = TextAlignment.LEFT;
+                    if (properties.getJc() != null)
+                        alignment = convertAlignment(properties.getJc().getVal());
 
-                    PPr properties = paragraph.getPPr();
-                    // If no paragraph properties are listed, set them to the defaults
-                    if (properties == null)
-                        setFlowProperties(TextAlignment.LEFT, 0.0);
+                    // Check for paragraph indentation
+                    double leftIndent = 0.0, rightIndent = 0.0;
+                    if (properties.getInd() != null)
+                    {
+                        if (properties.getInd().getLeft() != null)
+                            leftIndent = properties.getInd().getLeft().doubleValue();
+                        if (properties.getInd().getRight() != null)
+                            rightIndent = properties.getInd().getRight().doubleValue();
+                    }
+
+                    // Check for paragraph spacing
+                    if (properties.getSpacing() == null)
+                        setFlowProperties(alignment, leftIndent, rightIndent, 0.0);
                     else
                     {
-                        // Check for paragraph alignment
-                        TextAlignment alignment = TextAlignment.LEFT;
-                        if (properties.getJc() != null)
-                            alignment = convertAlignment(properties.getJc().getVal());
+                        double lineSpacing = 0.0;
+                        if (properties.getSpacing().getLine() != null)
+                            lineSpacing = properties.getSpacing().getLine().doubleValue() / EMPTY_SPACE_RATIO;
+                        setFlowProperties(alignment, leftIndent, rightIndent, lineSpacing);
 
-                        // Check for paragraph spacing
-                        if (properties.getSpacing() == null)
-                            setFlowProperties(alignment, 0.0);
+                        // Add the spacing from after the previous paragraph to any spacing that is before this paragraph
+                        double paragraphSpacing = carryoverSpacing;
+                        if (properties.getSpacing().getBefore() != null)
+                            paragraphSpacing += properties.getSpacing().getBefore().doubleValue();
+
+                        // Insert the number of newlines that is roughly equivalent to this amount of spacing
+                        int lines = (int) (paragraphSpacing / MIN_NEWLINE_HEIGHT);
+                        if (lines > 0)
+                        {
+                            char[] spacingChars = new char[lines];
+                            Arrays.fill(spacingChars, '\n');
+                            newLine.append(spacingChars);
+                        }
+
+                        carryoverSpacing = 0.0;
+                    }
+
+                    // For first-line indentation, prioritize bulleted lists
+                    if (properties.getPStyle() != null && properties.getPStyle().getVal().equals("ListParagraph"))
+                    {
+                        if (properties.getNumPr() != null && properties.getNumPr().getIlvl() != null)
+                        {
+                            // Determine the bullet point character from the list level
+                            int listLevel = properties.getNumPr().getIlvl().getVal().intValue();
+                            char bulletPoint = '-';
+                            if (listLevel % 3 == 1)
+                                bulletPoint = '*';
+                            else if (listLevel % 3 == 2)
+                                bulletPoint = 'º';
+
+                            // Indent the line according to the list level and add the bullet point with a small buffer
+                            char[] indent = new char[listLevel];
+                            Arrays.fill(indent, '\t');
+                            newLine.append(indent).append(bulletPoint).append("  ");
+                        }
                         else
-                        {
-                            if (properties.getSpacing().getLine() != null)
-                                setFlowProperties(alignment, properties.getSpacing().getLine().doubleValue() / EMPTY_SPACE_RATIO);
-                            else
-                                setFlowProperties(alignment, 0.0);
-
-                            // Add the spacing from after the previous paragraph to any spacing that is before this paragraph
-                            double paragraphSpacing = carryoverSpacing;
-                            if (properties.getSpacing().getBefore() != null)
-                                paragraphSpacing += properties.getSpacing().getBefore().doubleValue();
-
-                            // Insert the number of newlines that is roughly equivalent to this amount of spacing
-                            int lines = (int) (paragraphSpacing / MIN_NEWLINE_HEIGHT);
-                            if (lines > 0)
-                            {
-                                char[] spacingChars = new char[lines];
-                                Arrays.fill(spacingChars, '\n');
-                                newLine.append(spacingChars);
-                            }
-
-                            carryoverSpacing = 0.0;
-                        }
-
-                        // For first-line indentation, prioritize bulleted lists
-                        if (properties.getPStyle() != null && properties.getPStyle().getVal().equals("ListParagraph"))
-                        {
-                            if (properties.getNumPr() != null && properties.getNumPr().getIlvl() != null)
-                            {
-                                // Determine the bullet point character from the list level
-                                int listLevel = properties.getNumPr().getIlvl().getVal().intValue();
-                                char bulletPoint = '-';
-                                if (listLevel % 3 == 1)
-                                    bulletPoint = '*';
-                                else if (listLevel % 3 == 2)
-                                    bulletPoint = 'º';
-
-                                // Indent the line according to the list level and add the bullet point with a small buffer
-                                char[] indent = new char[listLevel];
-                                Arrays.fill(indent, '\t');
-                                newLine.append(indent).append(bulletPoint).append("  ");
-                            }
-                            else
-                                System.out.println("DocxTraversalCallback.newParagraph: Unable to retrieve ListParagraph level");
-                        }
-                        // Otherwise, only indent the first line of this paragraph if it didn't start on the previous page
-                        else if (!continuing && properties.getInd() != null)
-                        {
-                            int len = (int) (properties.getInd().getFirstLine().doubleValue() / EMPTY_SPACE_RATIO);
-                            if (len > 0)
-                            {
-                                char[] indent = new char[len];
-                                Arrays.fill(indent, ' ');
-                                newLine.append(indent);
-                            }
-                        }
+                            System.out.println("DocxTraversalCallback.newParagraph: Unable to retrieve ListParagraph level");
                     }
-
-                    /* A new paragraph needs to be put on its own line. A new TextFlow will do this automatically, but if this is not
-                     * the beginning of a TextFlow, then manually insert a newline character before any possible indentation. */
-                    if (!currentFlow.getChildren().isEmpty())
-                        newLine.insert(0, '\n');
-
-                    if (!newLine.isEmpty())
-                        currentFlow.getChildren().add(new Text(newLine.toString()));
-                }
-
-                @Override
-                void endParagraph(P paragraph)
-                {
-                    // If the first paragraph of a TextFlow was empty, insert a newline retroactively
-                    if (currentFlow.getChildren().isEmpty())
-                        currentFlow.getChildren().add(new Text("\n"));
-
-                    // Record the amount of spacing that should be after this paragraph
-                    PPr properties = paragraph.getPPr();
-                    if (properties != null && properties.getSpacing() != null && properties.getSpacing().getAfter() != null)
-                        carryoverSpacing = properties.getSpacing().getAfter().doubleValue();
-                }
-
-                @Override
-                void newRun(R run)
-                {
-                    currentRun = new Text();
-
-                    RPr properties = run.getRPr();
-                    if (properties != null)
+                    // Otherwise, only indent the first line of this paragraph if it didn't start on the previous page
+                    else if (!continuing && properties.getInd() != null && properties.getInd().getFirstLine() != null)
                     {
-                        FontPosture italic = FontPosture.REGULAR;
-                        if (properties.getI() != null && properties.getI().isVal())
-                            italic = FontPosture.ITALIC;
-
-                        FontWeight bold = FontWeight.NORMAL;
-                        if (properties.getB() != null && properties.getB().isVal())
-                            bold = FontWeight.BOLD;
-
-                        if (properties.getU() != null)
-                            currentRun.setUnderline(true);
-
-                        String fontName = font.getName();
-                        if (properties.getRFonts() != null)
+                        int len = (int) (properties.getInd().getFirstLine().doubleValue() / EMPTY_SPACE_RATIO);
+                        if (len > 0)
                         {
-                            if (properties.getRFonts().getAscii() != null)
-                                fontName = properties.getRFonts().getAscii();
-                            else if (properties.getRFonts().getHAnsi() != null)
-                                fontName = properties.getRFonts().getHAnsi();
-                            else if (properties.getRFonts().getCs() != null)
-                                fontName = properties.getRFonts().getCs();
+                            char[] indent = new char[len];
+                            Arrays.fill(indent, ' ');
+                            newLine.append(indent);
                         }
-
-                        double fontSize = font.getSize();
-                        if (properties.getSz() != null)
-                            fontSize = properties.getSz().getVal().doubleValue() / FONT_SIZE_RATIO;
-
-                        currentRun.setFont(Font.font(fontName, bold, italic, fontSize));
                     }
-                    else
-                        currentRun.setFont(font);
                 }
 
-                @Override
-                void newText(String text)
+                /* A new paragraph needs to be put on its own line. A new TextFlow will do this automatically, but if this is not
+                 * the beginning of a TextFlow, then manually insert a newline character before any possible indentation. */
+                if (!currentFlow.getChildren().isEmpty())
+                    newLine.insert(0, '\n');
+
+                if (!newLine.isEmpty())
+                    currentFlow.getChildren().add(new Text(newLine.toString()));
+            }
+
+            @Override
+            void endParagraph(P paragraph)
+            {
+                // If the first paragraph of a subsequent TextFlow was empty, insert a newline retroactively
+                if (currentFlow.getChildren().isEmpty())
+                    currentFlow.getChildren().add(new Text("\n"));
+
+                // Record the amount of spacing that should be after this paragraph
+                PPr properties = paragraph.getPPr();
+                if (properties != null && properties.getSpacing() != null && properties.getSpacing().getAfter() != null)
+                    carryoverSpacing = properties.getSpacing().getAfter().doubleValue();
+            }
+
+            @Override
+            void newRun(R run)
+            {
+                currentRun = new Text();
+
+                RPr properties = run.getRPr();
+                if (properties != null)
                 {
-                    currentRun.setText(text);
-                    currentFlow.getChildren().add(currentRun);
-                }
+                    FontPosture italic = FontPosture.REGULAR;
+                    if (properties.getI() != null && properties.getI().isVal())
+                        italic = FontPosture.ITALIC;
 
-                @Override void endOfFile()
+                    FontWeight bold = FontWeight.NORMAL;
+                    if (properties.getB() != null && properties.getB().isVal())
+                        bold = FontWeight.BOLD;
+
+                    if (properties.getU() != null)
+                        currentRun.setUnderline(true);
+
+                    if (properties.getStrike() != null && properties.getStrike().isVal())
+                        currentRun.setStrikethrough(true);
+
+                    String fontName = font.getName();
+                    if (properties.getRFonts() != null)
+                    {
+                        if (properties.getRFonts().getAscii() != null)
+                            fontName = properties.getRFonts().getAscii();
+                        else if (properties.getRFonts().getHAnsi() != null)
+                            fontName = properties.getRFonts().getHAnsi();
+                        else if (properties.getRFonts().getCs() != null)
+                            fontName = properties.getRFonts().getCs();
+                    }
+
+                    double fontSize = font.getSize();
+                    if (properties.getSz() != null)
+                        fontSize = properties.getSz().getVal().doubleValue() / FONT_SIZE_RATIO;
+
+                    currentRun.setFont(Font.font(fontName, bold, italic, fontSize));
+                }
+                else
+                    currentRun.setFont(font);
+            }
+
+            @Override
+            void newText(String text)
+            {
+                currentRun.setText(text);
+                currentFlow.getChildren().add(currentRun);
+            }
+
+            @Override
+            void endOfFile()
+            {
+                // Only record the EoF if the start page has been found and something is being read
+                if (foundStart())
                 {
                     eof[0] = true;
                     if (currentFlow != null)
                         flows.add(currentFlow);
                 }
+            }
 
-                @Override boolean finished()
+            @Override
+            boolean finished()
+            {
+                boolean finished = (pageLen >= maxChars);
+                if (finished && currentFlow != null)
                 {
-                    boolean finished = (pageLen >= maxChars);
-                    if (finished && currentFlow != null)
+                    flows.add(currentFlow);
+                    currentFlow = null;
+                }
+                return finished;
+            }
+
+            private void setFlowProperties(TextAlignment alignment, double leftIndent, double rightIndent, double lineSpacing)
+            {
+                // Check if any of these properties don't match the current TextFlow
+                double leftPadding = leftIndent / EMPTY_SPACE_RATIO;
+                double rightPadding = rightIndent / EMPTY_SPACE_RATIO;
+                if (!alignment.equals(currentFlow.getTextAlignment()) || Math.abs(leftPadding - currentFlow.getPadding().getLeft()) > 0.1 ||
+                    Math.abs(rightPadding - currentFlow.getPadding().getRight()) > 0.1 || Math.abs(lineSpacing - currentFlow.getLineSpacing()) > 0.1)
+                {
+                    // Start a new TextFlow unless the current one is empty (such as when the first paragraph has properties that need to be set)
+                    if (!currentFlow.getChildren().isEmpty())
                     {
                         flows.add(currentFlow);
-                        currentFlow = null;
+                        currentFlow = new TextFlow();
                     }
-                    return finished;
+                    currentFlow.setTextAlignment(alignment);
+                    currentFlow.setLineSpacing(lineSpacing);
+                    if (rightPadding > 0.01 || leftPadding > 0.01)
+                        currentFlow.setPadding(new Insets(0, rightPadding, 0, leftPadding));
                 }
+            }
 
-                private void setFlowProperties(TextAlignment alignment, double lineSpacing)
+            // Return the TextAlignment enum value (used by JavaFX) that corresponds to the provided JcEnumeration enum value (from the XML)
+            private TextAlignment convertAlignment(JcEnumeration alignment)
+            {
+                return switch (alignment)
                 {
-                    // Check if either of these properties don't match the current TextFlow
-                    if (!alignment.equals(currentFlow.getTextAlignment()) || Math.abs(lineSpacing - currentFlow.getLineSpacing()) > 0.1)
-                    {
-                        // Start a new TextFlow unless the current one is empty (such as when the first paragraph has properties that need to be set)
-                        if (!currentFlow.getChildren().isEmpty())
-                        {
-                            flows.add(currentFlow);
-                            currentFlow = new TextFlow();
-                        }
-                        currentFlow.setTextAlignment(alignment);
-                        currentFlow.setLineSpacing(lineSpacing);
-                    }
-                }
+                    case JcEnumeration.BOTH -> TextAlignment.JUSTIFY;
+                    case JcEnumeration.CENTER -> TextAlignment.CENTER;
+                    case JcEnumeration.RIGHT -> TextAlignment.RIGHT;
+                    default -> TextAlignment.LEFT;
+                };
+            }
+        });
 
-                // Return the TextAlignment enum value (used by JavaFX) that corresponds to the provided JcEnumeration enum value (from the XML)
-                private TextAlignment convertAlignment(JcEnumeration alignment)
-                {
-                    return switch (alignment)
-                    {
-                        case JcEnumeration.BOTH -> TextAlignment.JUSTIFY;
-                        case JcEnumeration.CENTER -> TextAlignment.CENTER;
-                        case JcEnumeration.RIGHT -> TextAlignment.RIGHT;
-                        default -> TextAlignment.LEFT;
-                    };
-                }
-            });
+        if (successful)
+        {
+            nextPage++;
+            return new ParserResults(flows, eof[0]);
         }
-        catch (Exception e) { throw new RuntimeException(e); }
-
-        nextPage++;
-        return new ParserResults(flows, eof[0]);
+        else
+            return null;
     }
 
     @Override public void close() { }
 
+    // Use the provided callback method to traverse the .docx file, and if the StartPage cannot be found then re-index the pages and try again
+    private boolean traverseDocument(final int maxChars, DocxTraversalCallback callback)
+    {
+        Body body = mainDocument.getMainDocumentPart().getJaxbElement().getBody();
+        int attempts = 0;
+        do
+        {
+            new TraversalUtil(body, callback);
+
+            if (!callback.foundStart())
+            {
+                System.out.println("DocxParser.traverseDocument: Failed to locate start of page");
+                // Reset 'pages'
+                pages.clear();
+                pages.add(new PageStart(null, 0));
+                // Re-index the pages up to the current position
+                setNextPage(nextPage, maxChars);
+                // Reset the callback with the new start page
+                callback.init(pages.get(nextPage));
+                attempts++;
+            }
+        } while (!callback.foundStart() && attempts < 2);
+
+        return callback.foundStart();
+    }
+
     private abstract static class DocxTraversalCallback implements TraversalUtil.Callback
     {
-        protected int pageLen = 0;
+        protected int pageLen;
         private final int maxPageLen;
+        private PageStart startPage;
 
-        private final PageStart startPage;
         private boolean traversing;
+        public boolean foundStart() { return !traversing; }
 
         private String paraId;
-        private int paraOffset = 0;
+        private int paraOffset;
 
         public DocxTraversalCallback(final int maxPageLen, final PageStart startPage)
         {
             super();
             this.maxPageLen = maxPageLen;
+            init(startPage);
+        }
+
+        public void init(PageStart startPage)
+        {
             this.startPage = startPage;
             paraId = startPage.paraId;
             traversing = (startPage.paraId != null);
+            pageLen = 0;
+            paraOffset = 0;
         }
 
-        // Handler functions that need to be implemented by subclasses
+        // Handler functions that must be implemented by subclasses
         abstract void newPage(PageStart pageStart);
-        abstract void newParagraph(P paragraph, boolean continuing);
-        abstract void endParagraph(P paragraph);
-        abstract void newRun(R run);
-        abstract void newText(String text);
         abstract void endOfFile();
         abstract boolean finished();
+
+        // Optional handler functions
+        void newParagraph(P paragraph, boolean continuing) { }
+        void endParagraph(P paragraph) { }
+        void newRun(R run) { }
+        void newText(String text) { }
 
         @Override
         public List<Object> apply(Object object)
@@ -440,7 +504,8 @@ public class DocxParser extends Parser
             // If there's more of this text that overflows to the next page
             if (parts != null)
             {
-                // Alert the handler for the start of a new page
+                /* Alert the handler for the start of a new page (note that if this text is also the end of a paragraph,
+                 * the next page will be indexed as beginning at the very end of this paragraph) */
                 newPage(new PageStart(paraId, paraOffset));
                 // Unless the conditions have been met to stop processing the file, process the text on the next page
                 if (!finished())
