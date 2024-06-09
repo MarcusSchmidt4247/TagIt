@@ -96,7 +96,7 @@ public class DocxParser extends Parser
             {
                 // Only record the start of a new page if it has not been already (recall that after page 0 is read, the start of both page 0 and 1 have been recorded)
                 if (nextPage + 1 >= pages.size())
-                        pages.add(pageStart);
+                    pages.add(pageStart);
             }
 
             @Override
@@ -273,7 +273,7 @@ public class DocxParser extends Parser
             @Override
             boolean finished()
             {
-                boolean finished = (pageLen >= maxChars);
+                boolean finished = (getPagesRead() > 0);
                 if (finished && currentFlow != null)
                 {
                     flows.add(currentFlow);
@@ -359,11 +359,15 @@ public class DocxParser extends Parser
         private final int maxPageLen;
         private PageStart startPage;
 
+        private int pagesRead;
+        public int getPagesRead() { return pagesRead; }
+
         private boolean traversing;
         public boolean foundStart() { return !traversing; }
 
         private String paraId;
         private int paraOffset;
+        private boolean upcomingNewPage; // the start of the next run needs to trigger a new page
 
         public DocxTraversalCallback(final int maxPageLen, final PageStart startPage)
         {
@@ -378,7 +382,9 @@ public class DocxParser extends Parser
             paraId = startPage.paraId;
             traversing = (startPage.paraId != null);
             pageLen = 0;
+            pagesRead = 0;
             paraOffset = 0;
+            upcomingNewPage = false;
         }
 
         // Handler functions that must be implemented by subclasses
@@ -416,7 +422,15 @@ public class DocxParser extends Parser
                     newParagraph(para, false);
                 }
                 else if (object instanceof org.docx4j.wml.R)
+                {
+                    if (upcomingNewPage)
+                    {
+                        upcomingNewPage = false;
+                        incrementPage();
+                    }
+
                     newRun((R) object);
+                }
                 else if (object instanceof org.docx4j.wml.Text)
                 {
                     String text = ((org.docx4j.wml.Text) object).getValue();
@@ -480,19 +494,35 @@ public class DocxParser extends Parser
 
         @Override public boolean shouldTraverse(Object o) { return true; }
 
+        private void incrementPage()
+        {
+            newPage(new PageStart(paraId, paraOffset));
+            pagesRead++;
+        }
+
         private void processText(String text)
         {
             int len = text.length();
 
             // If this text will overflow to the next page, split it at the end of the page
             String[] parts = null;
-            if (pageLen + text.length() >= maxPageLen)
+            int overflow = pageLen + text.length() - maxPageLen;
+            if (overflow > 0)
             {
                 len = maxPageLen - pageLen;
                 parts = new String[2];
                 parts[0] = text.substring(0, len);
+                // Unless a character on either side of the natural page split is a space, try to find a better stopping point
+                if (text.charAt(len - 1) != ' ' && text.charAt(len) != ' ')
+                {
+                    parts[0] = neatCutoff(parts[0]);
+                    len = parts[0].length();
+                }
                 parts[1] = text.substring(len);
             }
+            // If this text perfectly fills up this page, then the next piece of text should start a new page
+            else if (overflow == 0)
+                upcomingNewPage = true;
 
             // Alert the handler for new text
             newText((parts == null) ? text : parts[0]);
@@ -504,9 +534,7 @@ public class DocxParser extends Parser
             // If there's more of this text that overflows to the next page
             if (parts != null)
             {
-                /* Alert the handler for the start of a new page (note that if this text is also the end of a paragraph,
-                 * the next page will be indexed as beginning at the very end of this paragraph) */
-                newPage(new PageStart(paraId, paraOffset));
+                incrementPage();
                 // Unless the conditions have been met to stop processing the file, process the text on the next page
                 if (!finished())
                     processText(parts[1]);

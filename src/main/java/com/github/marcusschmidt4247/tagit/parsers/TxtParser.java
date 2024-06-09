@@ -12,20 +12,29 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Vector;
 
 public class TxtParser extends Parser
 {
     private final File file;
     private FileReader fileReader;
+    private int filePos;
 
     private int nextPage;
     public int getNextPage() { return nextPage; }
+
+    private final Vector<Integer> pages;
+    private String carryover;
 
     public TxtParser(File file) throws FileNotFoundException
     {
         this.file = file;
         fileReader = new FileReader(file);
+        filePos = 0;
         nextPage = 0;
+        pages = new Vector<>();
+        pages.add(filePos);
+        carryover = "";
     }
 
     @Override
@@ -34,39 +43,49 @@ public class TxtParser extends Parser
         // Unless reading a future page, reset the file reader to the beginning of the file
         if (targetPage >= nextPage || resetFileReader())
         {
-            // Move forward one page at a time until the start of the target page has been reached
-            while (nextPage < targetPage)
+            // Skip as close to the target page as has already been indexed
+            int destPage = (targetPage < pages.size()) ? targetPage : (pages.size() - 1);
+            int destPos = pages.get(destPage);
+            long skipped = -1;
+            try
             {
-                long skipped = -1;
-                try
-                {
-                    skipped = fileReader.skip(maxChars);
-                }
-                catch (IOException exception)
-                {
-                    System.out.printf("TxtParser.setNextPage: %s\n", exception.toString());
-                }
-
-                if (skipped == -1)
-                    return false;
-                else if (skipped == maxChars)
-                    nextPage++;
-                else
-                {
-                    // If less than a full page could be skipped, then either this or the previously read page must be the last one
-                    int lastPage = nextPage;
-                    if (skipped == 0)
-                        lastPage--;
-
-                    // In order to go back to the start of the last full page, reset again and call another move to the last page
-                    return resetFileReader() && setNextPage(lastPage, maxChars);
-                }
+                skipped = fileReader.skip(destPos);
+            }
+            catch (IOException exception)
+            {
+                System.out.printf("TxtParser.setNextPage: %s\n", exception.toString());
             }
 
-            return true;
+            if (skipped != -1 && skipped == destPos)
+            {
+                filePos = destPos;
+                nextPage = destPage;
+
+                // If there are any pages left to traverse, read them until the destination or end of file is reached
+                while (nextPage < targetPage)
+                {
+                    ParserResults page = readNextPage(Font.font(1.0), maxChars);
+                    if (page == null)
+                        return false;
+                    else if (page.isEndOfFile())
+                    {
+                        int lastPage = nextPage - 1;
+                        return resetFileReader() && setNextPage(lastPage, maxChars);
+                    }
+                }
+
+                return true;
+            }
+            // If less than the full amount could be skipped, then the file has likely been truncated and the pages need to be re-indexed
+            else if (skipped != -1)
+            {
+                pages.clear();
+                pages.add(0);
+                return resetFileReader() && setNextPage(targetPage, maxChars);
+            }
         }
-        else
-            return false;
+
+        return false;
     }
 
     @Override
@@ -74,16 +93,40 @@ public class TxtParser extends Parser
     {
         try
         {
-            // Attempt to read the maximum number of characters for a page
-            char[] buffer = new char[maxChars];
-            int length = fileReader.read(buffer, 0, maxChars);
+            // Attempt to read the maximum number of characters for a new page, or exactly the length of a known page
+            int pageLen = (nextPage + 1 < pages.size()) ? (pages.get(nextPage + 1) - pages.get(nextPage)) : maxChars;
+            int bufferLen = pageLen - carryover.length();
+            char[] buffer = new char[bufferLen];
+            int length = fileReader.read(buffer, 0, bufferLen);
             if (length != -1)
             {
+                filePos += length;
+                String text = carryover + new String(buffer, 0, length);
+                length += carryover.length();
+                carryover = "";
                 nextPage++;
-                // If less than a full page was able to be read, mark that this page must be the last one
-                boolean eof = (length < maxChars);
 
-                Text content = new Text(new String(buffer, 0, length));
+                // Determine whether the end of the file has been reached before a full page could be read
+                boolean eof = (length < pageLen);
+                // If the file continues onto another page
+                if (!eof)
+                {
+                    int pageStart = filePos;
+                    // Find a good place to stop this page if it doesn't already end with a space
+                    if (buffer[bufferLen - 1] != ' ')
+                    {
+                        String trimmed = neatCutoff(text);
+                        carryover = text.substring(trimmed.length());
+                        text = trimmed;
+                        pageStart -= length - text.length();
+                    }
+
+                    // Record the position where the next page starts if it has not been already
+                    if (nextPage >= pages.size())
+                        pages.add(pageStart);
+                }
+
+                Text content = new Text(text);
                 content.setFont(font);
                 return new ParserResults(content, eof);
             }
@@ -111,7 +154,9 @@ public class TxtParser extends Parser
     {
         try
         {
+            filePos = 0;
             nextPage = 0;
+            carryover = "";
             close();
             fileReader = new FileReader(file);
             return true;
