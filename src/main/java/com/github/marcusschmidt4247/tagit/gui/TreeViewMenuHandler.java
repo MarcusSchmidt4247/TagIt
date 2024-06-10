@@ -57,8 +57,14 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
         {
             // Create a TagNode child for the new tag and add it to the database
             TagNode child = new TagNode(parent, dialog.getName());
-            if (parent.addChild(child))
-                Database.addTag(child);
+            if (Database.addTag(child))
+            {
+                // If the tag isn't successfully assigned to its parent, remove it from the database
+                if (!parent.addChild(child))
+                    Database.deleteTag(child);
+            }
+            else
+                WindowManager.showError("Failed to create tag");
         }
     }
 

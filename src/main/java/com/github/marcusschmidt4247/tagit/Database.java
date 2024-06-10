@@ -132,7 +132,7 @@ public class Database
     //**************************
 
     // Save a newly created TagNode to the database
-    public static void addTag(TagNode tag)
+    public static boolean addTag(TagNode tag)
     {
         try (Connection connection = connect(tag.getDirectory()))
         {
@@ -153,10 +153,14 @@ public class Database
                 statement.execute(sql);
             }
             statement.close();
+
+            // The success of this operation is determined by whether the tag now has a valid database ID
+            return (tag.getId() != -1);
         }
-        catch (SQLException e)
+        catch (SQLException exception)
         {
-            throw new RuntimeException(e);
+            System.out.printf("Database.addTag: %s\n", exception.toString());
+            return false;
         }
     }
 

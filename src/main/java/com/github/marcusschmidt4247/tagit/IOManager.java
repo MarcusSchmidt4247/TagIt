@@ -207,7 +207,7 @@ public class IOManager
         {
             for (int i = tag.getChildren().size() - 1; i >= 0; i--)
             {
-                if (deleteTag(tag.getChildren().get(i)))
+                if (!deleteTag(tag.getChildren().get(i)))
                     return false;
             }
         }

@@ -194,12 +194,10 @@ public class TagNode
 
     public boolean equals(TagNode other)
     {
-        if (other == null)
-            return false;
-        else if (id != -1 || other.getId() != -1)
+        if (other != null && id != -1 && other.getId() != -1)
             return id == other.getId();
         else
-            return tag.getValue().equals(other.getTag());
+            return false;
     }
 
     /* Starting from the root TagNode of a (sub)tree that is equivalent to the one containing the provided TreeItem,
