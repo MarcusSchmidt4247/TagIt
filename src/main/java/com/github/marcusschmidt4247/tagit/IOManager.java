@@ -38,36 +38,52 @@ public class IOManager
         return managedFoldersModel;
     }
 
-    /* Check whether the user program directory, TagIt directory, and root database file exist. If not, create them.
-     * This method should be called immediately after the application launches, and it can be called again at any time
-     * to confirm that these required files still exist. */
-    public static boolean verify()
+    /* Check whether the root TagIt directory and database file exist (located in the user program directory by default). If not, create them.
+     * This method should be called immediately after the application launches, and it can be called again at any time to confirm that these
+     * required files still exist. */
+    public static boolean verify(String customRoot)
     {
-        // Determine the platform-appropriate path for the user program directory
-        String programsDirectoryPath;
-        String homePath = System.getProperty("user.home");
-        if (System.getProperty("os.name").startsWith("Windows"))
-            programsDirectoryPath = formatPath(homePath, "AppData", "Local", "Programs");
+        if (customRoot != null)
+            rootDirectory = customRoot;
         else
-            programsDirectoryPath = formatPath(homePath, "Applications");
-
-        // Check whether the user program directory exists, and create it if not
-        File programsDirectory = new File(programsDirectoryPath);
-        if (!programsDirectory.exists() && !programsDirectory.mkdir())
         {
-            System.out.printf("IOManager.verify: User program directory \"%s\" doesn't exist and can't be created\n", programsDirectory.getAbsolutePath());
-            WindowManager.showError("User programs directory does not exist");
-            return false;
+            // Determine the platform-appropriate path for the user program directory
+            String programsDirectoryPath;
+            String homePath = System.getProperty("user.home");
+            if (System.getProperty("os.name").startsWith("Windows"))
+                programsDirectoryPath = formatPath(homePath, "AppData", "Local", "Programs");
+            else
+                programsDirectoryPath = formatPath(homePath, "Applications");
+
+            // Check whether the user program directory exists, and create it if not
+            File programsDirectory = new File(programsDirectoryPath);
+            if (!programsDirectory.exists() && !programsDirectory.mkdir())
+            {
+                System.out.printf("IOManager.verify: User program directory \"%s\" doesn't exist and can't be created\n", programsDirectory.getAbsolutePath());
+                WindowManager.showError("User programs directory does not exist");
+                return false;
+            }
+
+            rootDirectory = formatPath(programsDirectoryPath, "TagIt");
         }
 
         // Check whether the root TagIt directory exists, and create it if not
-        rootDirectory = formatPath(programsDirectoryPath, "TagIt");
-        File tagItDirectory = new File(rootDirectory);
-        if (!tagItDirectory.exists() && !tagItDirectory.mkdir())
+        try
         {
-            System.out.println("IOManager.verify: TagIt directory doesn't exist and can't be created");
-            WindowManager.showError("Cannot create TagIt directory");
-            return false;
+            File root = new File(rootDirectory);
+            if (!root.exists() && !root.mkdir())
+            {
+                String directoryType = (customRoot == null) ? "Default root" : "Custom root";
+                System.out.printf("IOManager.verify: %s directory doesn't exist and can't be created\n", directoryType);
+                WindowManager.showError("Cannot create root directory");
+                return false;
+            }
+        }
+        catch (SecurityException securityException)
+        {
+            System.out.printf("IOManager.verify: SecurityManager has denied permission to custom root directory \"%s\"\n", customRoot);
+            rootDirectory = null;
+            return verify(rootDirectory);
         }
 
         // Check whether the root database file exists (create it if not) and is up-to-date

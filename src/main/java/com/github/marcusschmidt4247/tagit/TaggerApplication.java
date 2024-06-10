@@ -23,11 +23,13 @@ import javafx.stage.Stage;
 
 public class TaggerApplication extends Application
 {
+    private static String rootDirectory = null;
+
     @Override
     public void start(Stage stage)
     {
         // Verify the root directory
-        if (IOManager.verify())
+        if (IOManager.verify(rootDirectory))
         {
             // If there aren't any managed folders, attempt to create, verify, and open the default folder
             if (IOManager.getManagedFoldersModel().getManagedFolders().isEmpty())
@@ -61,6 +63,8 @@ public class TaggerApplication extends Application
 
     public static void main(String[] args)
     {
+        if (args.length > 0)
+            rootDirectory = args[0];
         launch();
     }
 }
