@@ -33,6 +33,9 @@ import java.util.Vector;
 
 public class TaggerController
 {
+    private final static String SELECT_ALL_TEXT = "Select All";
+    private final static String DESELECT_ALL_TEXT = "Deselect All";
+
     @FXML private DynamicCheckTreeView tagTreeView;
     @FXML private DynamicCheckTreeView excludeTreeView;
     @FXML private DynamicCheckTreeView editTreeView;
@@ -45,7 +48,8 @@ public class TaggerController
     @FXML private ChoiceBox<String> sortChoiceBox;
     @FXML private CheckBox excludeCheckBox;
     @FXML private Button expandButton;
-    @FXML private Button deselectButton;
+    @FXML private Button includeToggleButton;
+    @FXML private Button excludeToggleButton;
     @FXML private Button editNameButton;
     @FXML private Button deleteFileButton;
 
@@ -55,6 +59,9 @@ public class TaggerController
 
     public void initialize()
     {
+        includeToggleButton.setText(SELECT_ALL_TEXT);
+        excludeToggleButton.setText(SELECT_ALL_TEXT);
+
         // Populate the sort method ChoiceBox, default to the first option, and create a listener to refresh the current files every time it's changed
         for (SearchCriteria.SortMethod method : SearchCriteria.SortMethod.values())
             sortChoiceBox.getItems().add(method.description);
@@ -102,6 +109,13 @@ public class TaggerController
                 if (!(checked && alt))
                     node.activateNode(checked);
             });
+
+            // Update the label of the "(De)Select All" button if needed
+            if (tagTreeView.getCheckModel().isEmpty())
+                includeToggleButton.setText(SELECT_ALL_TEXT);
+            else if (added.size() == tagTreeView.getCheckModel().getCheckedItems().size())
+                includeToggleButton.setText(DESELECT_ALL_TEXT);
+
             getCurrentFiles();
         });
 
@@ -121,6 +135,13 @@ public class TaggerController
                 if (!(checked && alt))
                     node.excludeNode(checked);
             });
+
+            // Update the label of the "(De)Select All" button if needed
+            if (excludeTreeView.getCheckModel().isEmpty())
+                excludeToggleButton.setText(SELECT_ALL_TEXT);
+            else if (added.size() == excludeTreeView.getCheckModel().getCheckedItems().size())
+                excludeToggleButton.setText(DESELECT_ALL_TEXT);
+
             // Only update the current list of files if excluded tags are an enabled search criteria
             if (excludeCheckBox.isSelected())
                 getCurrentFiles();
@@ -186,16 +207,28 @@ public class TaggerController
     }
 
     @FXML
-    public void onDeselectInclude() { tagTreeView.getCheckModel().clearChecks(); }
+    public void onToggleInclude()
+    {
+        if (tagTreeView.getCheckModel().isEmpty())
+            tagTreeView.getRoot().getChildren().forEach(child -> tagTreeView.getCheckModel().check(child));
+        else
+            tagTreeView.getCheckModel().clearChecks();
+    }
 
     @FXML
-    public void onDeselectExclude() { excludeTreeView.getCheckModel().clearChecks(); }
+    public void onToggleExclude()
+    {
+        if (excludeTreeView.getCheckModel().isEmpty())
+            excludeTreeView.getRoot().getChildren().forEach(child -> excludeTreeView.getCheckModel().check(child));
+        else
+            excludeTreeView.getCheckModel().clearChecks();
+    }
 
     @FXML
     public void onToggleExcludeView()
     {
         excludeTreeView.setVisible(!excludeTreeView.isVisible());
-        deselectButton.setVisible(excludeTreeView.isVisible());
+        excludeToggleButton.setVisible(excludeTreeView.isVisible());
         String icon = excludeTreeView.isVisible() ? "bxs-down-arrow" : "bxs-right-arrow";
         expandButton.setGraphic(new FontIcon(icon));
     }
