@@ -11,6 +11,7 @@ import com.github.marcusschmidt4247.tagit.WindowManager;
 import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
 import com.github.marcusschmidt4247.tagit.gui.MultiMediaView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
+import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.SearchCriteria;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
@@ -36,6 +37,7 @@ public class TaggerController
     private final static String SELECT_ALL_TEXT = "Select All";
     private final static String DESELECT_ALL_TEXT = "Deselect All";
 
+    @FXML private Menu fileTypesMenu;
     @FXML private DynamicCheckTreeView tagTreeView;
     @FXML private DynamicCheckTreeView excludeTreeView;
     @FXML private DynamicCheckTreeView editTreeView;
@@ -59,6 +61,17 @@ public class TaggerController
 
     public void initialize()
     {
+        for (FileTypes.Type type : FileTypes.Type.values())
+        {
+            if (type != FileTypes.Type.UNSUPPORTED)
+            {
+                CheckMenuItem menuItem = new CheckMenuItem(type.description);
+                menuItem.setSelected(true);
+                menuItem.setOnAction((eventHandler) -> getCurrentFiles());
+                fileTypesMenu.getItems().add(menuItem);
+            }
+        }
+
         includeToggleButton.setText(SELECT_ALL_TEXT);
         excludeToggleButton.setText(SELECT_ALL_TEXT);
 
@@ -261,10 +274,21 @@ public class TaggerController
 
     private void getCurrentFiles()
     {
-        // Gather the criteria for which files to select
+        // Create a list of the file types to search for
+        Vector<FileTypes.Type> fileTypes = new Vector<>();
+        for (MenuItem menuItem : fileTypesMenu.getItems())
+        {
+            if (((CheckMenuItem) menuItem).isSelected())
+                fileTypes.add(FileTypes.Type.instanceOf(menuItem.getText()));
+        }
+        // If every type should be searched for, set the list to null for the default (and more efficient) behavior
+        if (fileTypes.size() == fileTypesMenu.getItems().size())
+            fileTypes = null;
+
+        // Gather the remaining criteria for which files to select
         boolean anyMatch = (criteriaChoiceBox.getSelectionModel().getSelectedIndex() == 0);
         boolean excluding = excludeCheckBox.isSelected();
-        SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), anyMatch, excluding, getSortMethod());
+        SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), fileTypes, anyMatch, excluding, getSortMethod());
 
         // Select files that meet the search criteria and refresh the content pane
         taggerModel.setFiles(Database.getTaggedFiles(taggerModel.getPath(), searchCriteria));

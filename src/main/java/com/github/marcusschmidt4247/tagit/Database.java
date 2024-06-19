@@ -5,6 +5,7 @@
 
 package com.github.marcusschmidt4247.tagit;
 
+import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
 import com.github.marcusschmidt4247.tagit.miscellaneous.ManagedFolder;
 import com.github.marcusschmidt4247.tagit.miscellaneous.SearchCriteria;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
@@ -486,7 +487,11 @@ public class Database
 
                 ResultSet results = statement.executeQuery(sql);
                 while (results.next())
-                    files.add(results.getString(1));
+                {
+                    String name = results.getString(1);
+                    if (searchCriteria.getFileTypes() == null || searchCriteria.getFileTypes().contains(FileTypes.getType(name)))
+                        files.add(name);
+                }
                 statement.close();
             }
             catch (SQLException e)

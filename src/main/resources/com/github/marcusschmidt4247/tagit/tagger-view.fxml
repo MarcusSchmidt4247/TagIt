@@ -22,6 +22,9 @@
             <MenuItem text="Toggle File Editing" onAction="#onToggleEdit"/>
             <MenuItem text="Import New Files" onAction="#onSelectImport"/>
         </Menu>
+        <Menu text="Advanced Controls">
+            <Menu fx:id="fileTypesMenu" text="File Types"/>
+        </Menu>
     </MenuBar>
     <SplitPane fx:id="mainSplitPane" dividerPositions="0.3,0.7" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- Left pane shows controls -->

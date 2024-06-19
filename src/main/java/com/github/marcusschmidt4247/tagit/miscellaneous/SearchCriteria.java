@@ -31,13 +31,17 @@ public class SearchCriteria
     private final Vector<Integer> excludeIds = new Vector<>();
     public Vector<Integer> getExcludeIds() { return excludeIds; }
 
+    private final Vector<FileTypes.Type> fileTypes;
+    public Vector<FileTypes.Type> getFileTypes() { return fileTypes; }
+
     private final boolean anyMatch;
     public boolean isAnyMatch() { return anyMatch; }
 
     private final boolean excluding;
 
-    public SearchCriteria(TagNode root, boolean anyMatch, boolean excluding, SortMethod sortMethod)
+    public SearchCriteria(TagNode root, Vector<FileTypes.Type> fileTypes, boolean anyMatch, boolean excluding, SortMethod sortMethod)
     {
+        this.fileTypes = fileTypes;
         this.anyMatch = anyMatch;
         this.excluding = excluding;
         this.sortMethod = sortMethod;
