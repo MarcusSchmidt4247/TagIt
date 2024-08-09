@@ -162,12 +162,11 @@ public class ImporterController
                 tagLabel.setText(stringBuilder.toString());
             });
             ContextMenu contextMenu = new ContextMenu();
-            MenuItem createRootItem = new MenuItem("Create root tag");
-            createRootItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.CREATE_ROOT));
-            contextMenu.getItems().add(createRootItem);
-            MenuItem createChildItem = new MenuItem("Create child tag");
-            createChildItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.CREATE_CHILD));
-            contextMenu.getItems().add(createChildItem);
+            // Menu item to create a new tag
+            MenuItem createItem = new MenuItem("Create tag");
+            createItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.CREATE));
+            contextMenu.getItems().add(createItem);
+            // Menu item to edit selected tag
             MenuItem editItem = new MenuItem("Edit tag");
             editItem.setOnAction(new TreeViewMenuHandler(taggerModel.getTreeRoot(), tagTreeView, TreeViewMenuHandler.Type.EDIT));
             contextMenu.getItems().add(editItem);

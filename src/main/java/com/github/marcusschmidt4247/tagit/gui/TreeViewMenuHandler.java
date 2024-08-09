@@ -15,7 +15,7 @@ import org.controlsfx.control.CheckTreeView;
 
 public class TreeViewMenuHandler implements EventHandler<ActionEvent>
 {
-    public enum Type { CREATE_ROOT, CREATE_CHILD, EDIT }
+    public enum Type { CREATE, EDIT }
 
     private final TagNode treeRoot;
     private final CheckTreeView<String> treeView;
@@ -31,30 +31,29 @@ public class TreeViewMenuHandler implements EventHandler<ActionEvent>
     @Override
     public void handle(ActionEvent actionEvent)
     {
-        if (type == Type.CREATE_ROOT)
-            handleCreate(false);
-        else if (type == Type.CREATE_CHILD)
-            handleCreate(true);
+        if (type == Type.CREATE)
+            handleCreate();
         else if (type == Type.EDIT)
             handleEdit();
         else
             System.out.println("TreeViewMenuHandler.handle: Unrecognized menu item type");
     }
 
-    private void handleCreate(boolean createChild)
+    private void handleCreate()
     {
         // Find the TagNode that is equivalent to the selected TreeItem
         TagNode parent = treeRoot;
-        if (createChild)
-        {
-            TreeItem<String> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            if (selectedItem != null)
-                parent = treeRoot.findNode(selectedItem);
-        }
+        TreeItem<String> selectedItem = treeView.getSelectionModel().getSelectedItem();
+        if (selectedItem != null)
+            parent = treeRoot.findNode(selectedItem);
 
         NameInputDialog dialog = new NameInputDialog("", parent);
         if (dialog.showAndLoop())
         {
+            // If the dialog selection is to create a root tag, reset the parent
+            if (dialog.getIsRoot())
+                parent = treeRoot;
+
             // Create a TagNode child for the new tag and add it to the database
             TagNode child = new TagNode(parent, dialog.getName());
             if (Database.addTag(child))
