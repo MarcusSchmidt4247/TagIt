@@ -39,6 +39,7 @@ public class ImporterController
     @FXML private Button prevButton;
     @FXML private Button nextButton;
     @FXML private Button importButton;
+    @FXML private CheckBox copyCheckBox;
 
     private TaggerModel taggerModel;
     private ImporterModel importerModel;
@@ -230,7 +231,7 @@ public class ImporterController
             File importFile = importerModel.getFiles().get(importerModel.importIndex);
             Path source = Path.of(importFile.getAbsolutePath());
             Path target = Path.of(IOManager.getFilePath(taggerModel.getPath(), importFile.getName()));
-            importFile(source, target);
+            importFile(source, target, copyCheckBox.isSelected());
         }
     }
 
@@ -238,13 +239,10 @@ public class ImporterController
     // Private methods *
     //******************
 
-    private void importFile(Path source, Path target)
+    private void importFile(Path source, Path target, boolean copy)
     {
         try
         {
-            // Copy the file to the program Storage directory
-            Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
-
             // Attempt to retrieve the time that this file was created as milliseconds since the epoch
             long creationTime;
             try
@@ -256,6 +254,12 @@ public class ImporterController
                 System.out.println(exception.toString());
                 creationTime = -1;
             }
+
+            // Copy or move the file to the program Storage directory
+            if (copy)
+                Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+            else
+                Files.move(source, target);
 
             // Record this file, its creation time, and the tags being applied to it in the database
             Database.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
@@ -274,7 +278,7 @@ public class ImporterController
                 // If the user chose to rename the file, open a text input dialog and import the file with the provided new name
                 NameInputDialog dialog = new NameInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
                 if (dialog.showAndLoop())
-                    importFile(source, Path.of(IOManager.getFilePath(taggerModel.getPath(), dialog.getName())));
+                    importFile(source, Path.of(IOManager.getFilePath(taggerModel.getPath(), dialog.getName())), copy);
             }
         }
         catch (IOException e)

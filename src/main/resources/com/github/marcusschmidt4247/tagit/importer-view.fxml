@@ -34,7 +34,7 @@
             </padding>
             <Label fx:id="fileNameLabel">Current File:</Label>
             <MultiMediaView fx:id="mediaView" styleClass="outlined" VBox.vgrow="ALWAYS"/>
-            <!--CheckBox fx:id="copyCheckBox" text="Import copy of file"/-->
+            <CheckBox fx:id="copyCheckBox" text="Import copy of file" selected="true"/>
         </VBox>
         <!-- The right side of the window contains the import controls -->
         <AnchorPane HBox.hgrow="ALWAYS" prefWidth="450" maxWidth="450">
