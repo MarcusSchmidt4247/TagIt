@@ -645,6 +645,26 @@ public class Database
         return files;
     }
 
+    // Return whether a file with the given name exists in the provided directory
+    public static boolean fileExists(String directory, String fileName)
+    {
+        boolean fileExists = false;
+        try (Connection connection = connect(directory))
+        {
+            Statement statement = connection.createStatement();
+            String sql = String.format("SELECT name FROM File WHERE name='%s'", fileName);
+            ResultSet result = statement.executeQuery(sql);
+            if (result.next())
+                fileExists = true;
+            statement.close();
+        }
+        catch (SQLException exception)
+        {
+            System.out.println("Database.fileExists: " + exception.toString());
+        }
+        return fileExists;
+    }
+
     public static boolean renameFileInDatabase(String directory, String oldName, String newName)
     {
         try (Connection connection = connect(directory))

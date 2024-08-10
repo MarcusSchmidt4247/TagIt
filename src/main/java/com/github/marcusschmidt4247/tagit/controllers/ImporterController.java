@@ -12,10 +12,12 @@ import com.github.marcusschmidt4247.tagit.gui.DynamicCheckTreeView;
 import com.github.marcusschmidt4247.tagit.gui.MultiMediaView;
 import com.github.marcusschmidt4247.tagit.gui.NameInputDialog;
 import com.github.marcusschmidt4247.tagit.gui.TreeViewMenuHandler;
+import com.github.marcusschmidt4247.tagit.miscellaneous.FileTypes;
 import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import com.github.marcusschmidt4247.tagit.models.ImporterModel;
 import com.github.marcusschmidt4247.tagit.models.TaggerModel;
 import javafx.collections.ListChangeListener;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.DirectoryChooser;
@@ -31,8 +33,10 @@ public class ImporterController
     @FXML private MultiMediaView mediaView;
     @FXML private DynamicCheckTreeView tagTreeView;
 
+    @FXML private TextField fileNameField;
+    private final PseudoClass errorClass = PseudoClass.getPseudoClass("error"); // CSS style class
+
     @FXML private Label directoryLabel;
-    @FXML private Label fileNameLabel;
     @FXML private Label tagLabel;
 
     @FXML private Button deselectButton;
@@ -93,6 +97,14 @@ public class ImporterController
                 else
                     refreshContentPane();
             }
+        });
+
+        // When the file name changes, check if it's a valid name and assign the CSS error style class if not
+        fileNameField.textProperty().addListener((observableValue, s, t1) ->
+        {
+            String name = fileNameField.getText();
+            boolean invalidName = name.isBlank() || !IOManager.validInput(name) || !FileTypes.isSupported(name) || Database.fileExists(taggerModel.getPath(), fileNameField.getText());
+            fileNameField.pseudoClassStateChanged(errorClass, invalidName);
         });
     }
 
@@ -225,13 +237,23 @@ public class ImporterController
     @FXML
     public void onImportButton()
     {
+        // Check that there is a current file to import
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
-                importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
+            importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
-            File importFile = importerModel.getFiles().get(importerModel.importIndex);
-            Path source = Path.of(importFile.getAbsolutePath());
-            Path target = Path.of(IOManager.getFilePath(taggerModel.getPath(), importFile.getName()));
-            importFile(source, target, copyCheckBox.isSelected());
+            // Check that the filename is not blank
+            if (fileNameField.getText().isBlank())
+                WindowManager.showError("Name cannot be blank");
+            // Check that the filename is valid
+            else if (!IOManager.validInput(fileNameField.getText()))
+                WindowManager.showError("Name cannot contain slashes or quotes");
+            else
+            {
+                // Attempt to import the file to the current managed directory with the name in the TextField
+                Path source = Path.of(importerModel.getFiles().get(importerModel.importIndex).getAbsolutePath());
+                Path target = Path.of(IOManager.getFilePath(taggerModel.getPath(), fileNameField.getText()));
+                importFile(source, target, copyCheckBox.isSelected());
+            }
         }
     }
 
@@ -241,49 +263,79 @@ public class ImporterController
 
     private void importFile(Path source, Path target, boolean copy)
     {
-        try
-        {
-            // Attempt to retrieve the time that this file was created as milliseconds since the epoch
-            long creationTime;
-            try
-            {
-                creationTime = Files.readAttributes(source, BasicFileAttributes.class).creationTime().toMillis();
-            }
-            catch (IOException | UnsupportedOperationException | SecurityException exception)
-            {
-                System.out.println(exception.toString());
-                creationTime = -1;
-            }
+        String name = target.getFileName().toString();
 
-            // Copy or move the file to the program Storage directory
-            if (copy)
-                Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+        // Handle an invalid file extension
+        if (!FileTypes.isSupported(name))
+        {
+            // If it's missing, give the user the option to use the extension in the original file name
+            if (FileTypes.getExtension(name) == null)
+            {
+                String originalExtension = FileTypes.getExtension(importerModel.getFiles().get(importerModel.importIndex).getName());
+                String description = "The file name must end with a valid extension. Reapply original file extension?";
+                String buttonString = String.format("Use %s", originalExtension);
+                if (originalExtension != null && WindowManager.customConfirmationDialog("Error", "Missing file extension", description, buttonString))
+                    importFile(source, Path.of(IOManager.getFilePath(taggerModel.getPath(), name.concat(originalExtension))), copy);
+            }
+            // If it's unsupported, alert the user
             else
-                Files.move(source, target);
-
-            // Record this file, its creation time, and the tags being applied to it in the database
-            Database.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
-            importerModel.getFiles().remove(importerModel.importIndex);
+                WindowManager.showError("Unsupported file extension");
         }
-        catch (FileAlreadyExistsException e)
+        // If a file with this name already exists in the managed directory, alert the user and give them the option to rename the new file
+        else if (Database.fileExists(taggerModel.getPath(), name))
         {
-            // If a file with this name already exists in the managed directory, alert the user and give them the option to rename the new file
-            Alert alert = new Alert(Alert.AlertType.NONE);
-            alert.setContentText(String.format("A file with name \"%s\" already exists", importerModel.getFiles().get(importerModel.importIndex).getName()));
-            alert.getButtonTypes().add(ButtonType.CANCEL);
-            alert.getButtonTypes().add(new ButtonType("Rename", ButtonBar.ButtonData.RIGHT));
-            alert.showAndWait();
-            if (alert.getResult() != ButtonType.CANCEL)
+            String description = String.format("The name must be unique in the \"%s\" folder. Import file with a different name?", taggerModel.getFolder().getName());
+            if (WindowManager.customConfirmationDialog("Error", "A file with this name already exists", description, "Rename"))
             {
-                // If the user chose to rename the file, open a text input dialog and import the file with the provided new name
-                NameInputDialog dialog = new NameInputDialog(importerModel.getFiles().get(importerModel.importIndex).getName());
+                // If the user chose to rename the file, open a text input dialog and import the file with the new name
+                NameInputDialog dialog = new NameInputDialog(name);
                 if (dialog.showAndLoop())
                     importFile(source, Path.of(IOManager.getFilePath(taggerModel.getPath(), dialog.getName())), copy);
             }
         }
-        catch (IOException e)
+        else
         {
-            throw new RuntimeException(e);
+            try
+            {
+                // Attempt to retrieve the time that this file was created as milliseconds since the epoch
+                long creationTime;
+                try
+                {
+                    creationTime = Files.readAttributes(source, BasicFileAttributes.class).creationTime().toMillis();
+                }
+                catch (IOException | UnsupportedOperationException | SecurityException exception)
+                {
+                    System.out.println(exception.toString());
+                    creationTime = -1;
+                }
+
+                // Copy or move the file to the program Storage directory
+                if (copy)
+                    Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+                else
+                    Files.move(source, target);
+
+                // Record this file, its creation time, and the tags being applied to it in the database
+                Database.saveFile(taggerModel.getPath(), target.getFileName().toString(), creationTime, importerModel.getAppliedTags());
+                importerModel.getFiles().remove(importerModel.importIndex);
+            }
+            // If a file with this name already exists in the storage directory, alert the user and give them the option to overwrite it
+            catch (FileAlreadyExistsException e)
+            {
+                String description = String.format("A file not tracked by the \"%s\" folder exists in its storage directory with this name. Replace it with the new file?", taggerModel.getFolder().getName());
+                if (WindowManager.customConfirmationDialog("Error", "Conflict with unmanaged file", description, "Replace"))
+                {
+                    // Delete the untracked file
+                    try { Files.delete(target); }
+                    catch (IOException ex) { throw new RuntimeException(ex); }
+                    // Import the new file
+                    importFile(source, target, copy);
+                }
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -292,12 +344,15 @@ public class ImporterController
         if (importerModel.getFiles() != null && !importerModel.getFiles().isEmpty() &&
             importerModel.importIndex >= 0 && importerModel.importIndex < importerModel.getFiles().size())
         {
-            fileNameLabel.setText(String.format("Current File: %s", importerModel.getFiles().get(importerModel.importIndex).getName()));
+            if (fileNameField.isDisabled())
+                fileNameField.setDisable(false);
+            fileNameField.setText(importerModel.getFiles().get(importerModel.importIndex).getName());
             mediaView.load(importerModel.getFiles().get(importerModel.importIndex));
         }
         else
         {
-            fileNameLabel.setText("Current File:");
+            fileNameField.setText("");
+            fileNameField.setDisable(true);
             mediaView.load(null);
         }
     }

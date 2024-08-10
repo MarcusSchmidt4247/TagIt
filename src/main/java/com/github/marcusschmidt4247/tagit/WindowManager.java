@@ -11,6 +11,7 @@ import com.github.marcusschmidt4247.tagit.miscellaneous.TagNode;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Modality;
@@ -23,17 +24,21 @@ public class WindowManager
 {
     private static Stage managedFoldersStage = null;
 
-    public static boolean confirmationDialog(String title, String header, String description)
+    public static boolean customConfirmationDialog(String title, String header, String description, String posButtonText)
     {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        Alert confirmation = new Alert(Alert.AlertType.NONE);
+        confirmation.getDialogPane().setMaxWidth(400);
         confirmation.setTitle(title);
         confirmation.setHeaderText(header);
         confirmation.setContentText(description);
-        confirmation.setGraphic(null);
-        confirmation.getDialogPane().setMaxWidth(400);
+        confirmation.getButtonTypes().add(new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType confirmButtonType = new ButtonType(posButtonText, ButtonBar.ButtonData.OK_DONE);
+        confirmation.getButtonTypes().add(confirmButtonType);
         confirmation.showAndWait();
-        return (confirmation.getResult() == ButtonType.OK);
+        return confirmation.getResult().equals(confirmButtonType);
     }
+
+    public static boolean confirmationDialog(String title, String header, String description) { return customConfirmationDialog(title, header, description, "OK"); }
 
     public static void showError(String message)
     {

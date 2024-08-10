@@ -29,10 +29,10 @@
     <HBox spacing="20.0" maxHeight="Infinity" maxWidth="Infinity" VBox.vgrow="ALWAYS">
         <!-- The left side of the window previews the content -->
         <VBox spacing="10.0" HBox.hgrow="ALWAYS" prefWidth="450">
-            <padding>
-                <Insets top="5.0"/>
-            </padding>
-            <Label fx:id="fileNameLabel">Current File:</Label>
+            <HBox spacing="10.0" alignment="CENTER_LEFT">
+                <Label>Current File:</Label>
+                <TextField fx:id="fileNameField" HBox.hgrow="ALWAYS" disable="true"/>
+            </HBox>
             <MultiMediaView fx:id="mediaView" styleClass="outlined" VBox.vgrow="ALWAYS"/>
             <CheckBox fx:id="copyCheckBox" text="Import copy of file" selected="true"/>
         </VBox>

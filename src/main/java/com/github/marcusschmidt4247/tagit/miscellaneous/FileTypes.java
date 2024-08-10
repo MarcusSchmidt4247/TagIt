@@ -28,6 +28,16 @@ public class FileTypes
         }
     }
 
+    // Return the file extension in lowercase from the provided name (or null if it doesn't have one)
+    public static String getExtension(String filename)
+    {
+        int dotIndex = filename.toLowerCase().lastIndexOf('.');
+        if (dotIndex != -1)
+            return filename.substring(dotIndex);
+        else
+            return null;
+    }
+
     public static Type getType(String filename)
     {
         if (filename != null)
@@ -39,17 +49,14 @@ public class FileTypes
             else
             {
                 // Check only the file's extension for the other file types
-                int dotIndex = name.lastIndexOf('.');
-                if (dotIndex != -1)
+                String extension = getExtension(name);
+                if (extension != null)
                 {
-                    String extension = name.substring(dotIndex);
                     if (extension.matches("[.](jpe?g|png)$"))
                         return Type.IMAGE;
                     else if (extension.matches("[.](mp[34])$"))
                         return Type.VIDEO;
                 }
-                else
-                    System.out.printf("FileTypes.getType: File \"%s\" has no extension\n", filename);
             }
         }
 

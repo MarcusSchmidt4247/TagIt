@@ -11,6 +11,12 @@
     -fx-border-radius: 5;
 }
 
+.text-field:error {
+    -fx-text-box-border: #EE0000;
+    -fx-focus-color: red;
+    -fx-faint-focus-color: #FF000022;
+}
+
 .dev-outline {
     -fx-border-color: #FF0000;
     -fx-border-width: 0.5;
