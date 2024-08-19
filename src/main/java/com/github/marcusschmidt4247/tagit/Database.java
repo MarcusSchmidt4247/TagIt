@@ -25,6 +25,13 @@ public class Database
     private static final String DATABASE_INFO_SCHEMA = "CREATE TABLE DatabaseInfo(version INTEGER NOT NULL)";
     private static final String FOLDERS_SCHEMA = "CREATE TABLE IF NOT EXISTS Folders(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, location TEXT NOT NULL, main INTEGER DEFAULT 0, created INTEGER NOT NULL)";
 
+    /**
+     * Creates the database tables used by the root directory. The database file in <code>directory</code> must already exist.
+     * <p/>
+     * The primary purpose of this root database is to track the locations of the user's custom <code>ManagedFolder</code> directories.
+     * @param directory the absolute path to the root directory
+     * @return <code>true</code> if tables created successfully; <code>false</code> otherwise
+     */
     public static boolean createRootTables(String directory)
     {
         try (Connection connection = connect(directory, false))
@@ -43,6 +50,11 @@ public class Database
         }
     }
 
+    /**
+     * Creates the database tables used by a <code>ManagedFolder</code> directory. The database file in <code>directory</code> must already exist.
+     * @param directory the absolute path to the directory
+     * @return <code>true</code> if tables created successfully; <code>false</code> otherwise
+     */
     public static boolean createTables(String directory)
     {
         try (Connection connection = connect(directory, false))
@@ -165,7 +177,11 @@ public class Database
         }
     }
 
-    // Return the list of tags that do not have parent tags
+    /**
+     * Fetches children of the root <code>TagNode</code>. The root node is not a tag, so its children are the highest level tags.
+     * @param root the first node in the <code>TagNode</code> tree
+     * @param tags the list to fill with the result (any pre-existing items will be overwritten)
+     */
     public static void getRootTags(TagNode root, ObservableList<TagNode> tags)
     {
         tags.clear();
@@ -184,7 +200,11 @@ public class Database
         }
     }
 
-    // Return the list of tags that are children of the provided tag
+    /**
+     * Fetches children of a <code>TagNode</code>.
+     * @param parent the target node (cannot be the root node)
+     * @param children the list to fill with the result (any pre-existing items will be overwritten)
+     */
     public static void getChildTags(TagNode parent, ObservableList<TagNode> children)
     {
         children.clear();
@@ -207,7 +227,11 @@ public class Database
         }
     }
 
-    // Return whether the provided tag has any children tags
+    /**
+     * Checks if <code>TagNode</code> has children to read from database.
+     * @param tag the target node (cannot be the root node)
+     * @return <code>true</code> if <code>tag</code> has no children; <code>false</code> otherwise
+     */
     public static boolean isLeafTag(TagNode tag)
     {
         try (Connection connection = connect(tag.getDirectory()))
@@ -303,7 +327,12 @@ public class Database
             System.out.println("Database.deleteTag: Tag ID = -1");
     }
 
-    // Return every tag associated with the provided file
+    /**
+     * Fetches the <code>TagNode</code>s associated with a file.
+     * @param root the first node in the <code>TagNode</code> tree
+     * @param fileName the target file
+     * @return a list of all associated tags
+     */
     public static Vector<TagNode> getFileTags(TagNode root, String fileName)
     {
         Vector<TagNode> tags = new Vector<>();
@@ -348,6 +377,12 @@ public class Database
         return tags;
     }
 
+    /**
+     * Creates list of <code>TagNode</code> IDs from root to target node.
+     * @param directory the absolute path to current <code>ManagedFolder</code> directory
+     * @param id the target node's unique identifier
+     * @return the path of node IDs
+     */
     public static Vector<Integer> getTagLineage(String directory, int id)
     {
         Vector<Integer> lineage = new Vector<>();
@@ -382,7 +417,11 @@ public class Database
     // Methods related to files *
     //***************************
 
-    // Return the list of names of every file in the managed directory that is associated with the provided tag
+    /**
+     * Fetches list of files associated with <code>tag</code>.
+     * @param tag the node that files must be associated with
+     * @return the names of all tagged files
+     */
     public static Vector<String> getTaggedFiles(TagNode tag)
     {
         Vector<String> files = new Vector<>();
@@ -410,13 +449,17 @@ public class Database
         return files;
     }
 
-    // Return the list of names of every file in the managed directory that meets the tag criteria
-    public static Vector<String> getTaggedFiles(String directory, SearchCriteria searchCriteria)
+    /**
+     * Fetches list of files that satisfy the provided <code>searchCriteria</code>.
+     * @param searchCriteria a set of conditions
+     * @return the names of all files in the search result
+     */
+    public static Vector<String> getTaggedFiles(SearchCriteria searchCriteria)
     {
         Vector<String> files = new Vector<>();
         if (!searchCriteria.getIncludeAny().isEmpty() || !searchCriteria.getIncludeAll().isEmpty())
         {
-            try (Connection connection = connect(directory))
+            try (Connection connection = connect(searchCriteria.getDirectory()))
             {
                 String table = "File";
                 String sql;
@@ -502,7 +545,13 @@ public class Database
         return files;
     }
 
-    // Save a newly imported file to the database
+    /**
+     * Adds new file to a <code>ManagedFolder</code>'s database.
+     * @param directory the absolute path to the <code>ManagedFolder</code> directory
+     * @param fileName the file's actual name in device storage (including the extension)
+     * @param fileCreatedMillis the file's creation time in milliseconds since the epoch
+     * @param tags the <code>TagNode</code>s with which this file is associated
+     */
     public static void saveFile(String directory, String fileName, long fileCreatedMillis, Vector<TagNode> tags)
     {
         if (!tags.isEmpty())
@@ -551,7 +600,11 @@ public class Database
             System.out.println("Database.saveFile: Cannot save file without any tags");
     }
 
-    // Associate the provided file and tag by inserting a row into the FileTags table
+    /**
+     * Creates a new association between a file and <code>TagNode</code>.
+     * @param file the name of the file receiving a new association
+     * @param tag the node being associated with
+     */
     public static void addFileTag(String file, TagNode tag)
     {
         if (tag.getId() != -1)
@@ -583,7 +636,11 @@ public class Database
             System.out.printf("Database.addFileTag: \"%s\" ID = -1\n", tag.getTag());
     }
 
-    // Dissociate the provided file and tag by deleting a row from the FileTags table
+    /**
+     * Removes an association between a file and <code>TagNode</code>.
+     * @param file the name of the file losing an association
+     * @param tag the node being disassociated with
+     */
     public static void deleteFileTag(String file, TagNode tag)
     {
         if (tag.getId() != -1)
@@ -615,7 +672,11 @@ public class Database
             System.out.println("Database.deleteFileTag: Tag ID = -1");
     }
 
-    // Return the list of names of every file in the managed directory that is only tagged with the provided tag
+    /**
+     * Fetches files that are associated with <code>tag</code> and nothing else.
+     * @param tag the target node
+     * @return a list of file names
+     */
     public static Vector<String> getUniqueFiles(TagNode tag)
     {
         Vector<String> files = new Vector<>();
@@ -645,7 +706,12 @@ public class Database
         return files;
     }
 
-    // Return whether a file with the given name exists in the provided directory
+    /**
+     * Checks if a file name is already used in a <code>ManagedFolder</code>.
+     * @param directory the absolute path to a <code>ManagedFolder</code> directory
+     * @param fileName the name to search for
+     * @return <code>true</code> if the file name is in use; <code>false</code> otherwise
+     */
     public static boolean fileExists(String directory, String fileName)
     {
         boolean fileExists = false;
@@ -772,7 +838,11 @@ public class Database
         }
     }
 
-    // Update a row in the Folders table with the properties in 'delta' that are not null (folder ID must be assigned to 'delta')
+    /**
+     * Updates a <code>ManagedFolder</code> in the database to have <code>delta</code>'s properties.
+     * @param delta The properties to update in the database; original folder ID must also be assigned. Leave unchanged
+     *              properties <code>null</code>.
+     */
     public static void updateManagedFolder(ManagedFolder delta)
     {
         if (delta.getId() == -1)

@@ -176,6 +176,10 @@ public class MediaControlView extends StackPane
         });
     }
 
+    /**
+     * Loads and begins playing a media file. The volume setting is preserved from the previous media played.
+     * @param file the media file to play
+     */
     public void load(File file)
     {
         // Create a new MediaPlayer that will play the provided File and assign the previous audio settings to it
@@ -207,7 +211,9 @@ public class MediaControlView extends StackPane
         mediaView.setMediaPlayer(mediaPlayer);
     }
 
-    // Stop playing and free the current media's memory
+    /**
+     * Stops playing and frees the current media's memory.
+     */
     public void unload()
     {
         if (mediaPlayer != null)
@@ -233,8 +239,10 @@ public class MediaControlView extends StackPane
         }
     }
 
-    /* Manually center the MediaView's content in its parent StackPane. The MediaPlayer will preserve its content's aspect ratio, so
-     * perform a translation along the axis where the media cannot fill the empty space. */
+    /**
+     * Centers the <code>MediaView</code>'s content in its parent <code>StackPane</code>. The <code>MediaPlayer</code> preserves
+     * its content's aspect ratio but needs a translation along the axis the media does not fill.
+     */
     private void centerMedia()
     {
         if (mediaPlayer != null)

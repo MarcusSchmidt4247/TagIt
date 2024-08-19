@@ -24,7 +24,10 @@ public class MultiMediaView extends StackPane
     private ImageView imageView;
     private MediaControlView mediaControlView;
 
-    // Must be called before MultiMediaView can be used
+    /**
+     * Performs necessary setup. Must be called before any file is loaded.
+     * @param bordered <code>true</code> if this view is styled with a border; <code>false</code> otherwise
+     */
     public void init(boolean bordered)
     {
         // Prepare to bind the MultiMediaView components to fill its dimensions
@@ -62,7 +65,10 @@ public class MultiMediaView extends StackPane
         getChildren().add(documentView);
     }
 
-    // Load and display the provided file with the appropriate view depending on its file type
+    /**
+     * Loads and displays a file with the correct media view.
+     * @param file the source in device storage to be loaded
+     */
     public void load(File file)
     {
         if (errorLabel == null)

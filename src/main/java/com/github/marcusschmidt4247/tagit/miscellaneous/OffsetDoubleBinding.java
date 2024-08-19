@@ -8,13 +8,20 @@ package com.github.marcusschmidt4247.tagit.miscellaneous;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ObservableDoubleValue;
 
-// A class that binds two Double properties together with an offset
+/**
+ * Binds to a <code>Double</code> property with some difference in value.
+ */
 public class OffsetDoubleBinding extends DoubleBinding
 {
     private final ObservableDoubleValue PROPERTY;
     private final double OFFSET;
     private double prevResult;
 
+    /**
+     * Class constructor. Creates a <code>DoubleBinding</code> that is always <code>OFFSET</code> less than <code>property</code>'s value.
+     * @param property the value to be offset as it changes
+     * @param OFFSET the value difference between this and <code>property</code>
+     */
     public OffsetDoubleBinding(ObservableDoubleValue property, final Double OFFSET)
     {
         PROPERTY = property;

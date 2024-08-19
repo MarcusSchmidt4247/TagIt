@@ -19,7 +19,11 @@ public class ManagedFoldersModel
     public ObservableList<ManagedFolder> getManagedFolders() { return managedFolders; }
 
     private ManagedFolder mainFolder = null;
-    public ManagedFolder getMainFolder() // might return null!
+    /**
+     * Gets the <code>ManagedFolder</code> designated as main.
+     * @return the folder; <code>null</code> if not found
+     */
+    public ManagedFolder getMainFolder()
     {
         // If the main folder is not currently set, search through the list of folders to find it if it exists
         if (mainFolder == null)
@@ -48,7 +52,10 @@ public class ManagedFoldersModel
 
     public ManagedFoldersModel() { managedFolders = Database.getManagedFolders(); }
 
-    // Add the provided folder to the list of managed folders and the database
+    /**
+     * Begins tracking and saves a <code>ManagedFolder</code> to the database.
+     * @param newFolder the folder to track
+     */
     public void addFolder(ManagedFolder newFolder)
     {
         if (newFolder.isMainFolder())
@@ -57,7 +64,12 @@ public class ManagedFoldersModel
         Database.createManagedFolder(newFolder);
     }
 
-    // Update the ManagedFolder, database, and directory in device storage with the changes in 'delta'
+    /**
+     * Updates the <code>ManagedFolder</code> with the values in the delta object. The database and directory in device storage will
+     * also be updated to reflect the changes.
+     * @param folder the <code>ManagedFolder</code> to update
+     * @param delta the object containing new values (must also be assigned original folder ID, any other unchanged properties should be <code>null</code>)
+     */
     public void updateFolder(ManagedFolder folder, ManagedFolder delta)
     {
         // If this change makes the folder the main one, reset the previous main folder
@@ -79,7 +91,10 @@ public class ManagedFoldersModel
             WindowManager.showError("Failed to update folder");
     }
 
-    // Delete the ManagedFolder and its database entry
+    /**
+     * Stops tracking the <code>ManagedFolder</code> object and removes its database entry.
+     * @param folder the <code>ManagedFolder</code> to delete
+     */
     public void deleteFolder(ManagedFolder folder)
     {
         folder.delete();
@@ -87,7 +102,11 @@ public class ManagedFoldersModel
         Database.deleteManagedFolder(folder);
     }
 
-    // Check if a folder with the given (unique) name exists
+    /**
+     * Searches for a <code>ManagedFolder</code> with the given name. The name will be unique if it exists.
+     * @param name the folder title to check for
+     * @return <code>true</code> if a <code>ManagedFolder</code> with this name exists; <code>false</code> otherwise
+     */
     public boolean folderExists(String name)
     {
         for (ManagedFolder folder : managedFolders)
@@ -98,7 +117,9 @@ public class ManagedFoldersModel
         return false;
     }
 
-    // Find the main folder in the list of managed folders and set it to no longer be the main folder (database is updated elsewhere)
+    /**
+     * Removes the main folder's designation. Does not update the database.
+     */
     private void resetMainFolder()
     {
         for (ManagedFolder folder : managedFolders)

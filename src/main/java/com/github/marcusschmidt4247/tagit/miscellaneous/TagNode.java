@@ -21,6 +21,11 @@ public class TagNode
     private final SimpleObjectProperty<TagNode> parent = new SimpleObjectProperty<>();
     public SimpleObjectProperty<TagNode> parentProperty() { return parent; }
     public TagNode getParent() { return parent.get(); }
+    /**
+     * Attempts to move this tag and its children to another part of the tree. This might cause a ripple effect of files being re-tagged,
+     * and might be interrupted by the user. If successful, the database will also be updated with the new tree structure.
+     * @param newParent the node to which this one should be moved
+     */
     public void changeParent(TagNode newParent)
     {
         if (newParent.addChild(this))
@@ -112,12 +117,20 @@ public class TagNode
             return children.isEmpty();
     }
 
+    /**
+     * Gets a textual representation of the path to this node from the tree root. The tag for each node along the path will be separated
+     * by "->" and terminate with this node's tag.
+     * @return the description of the path to this node
+     */
     public String getTagPath()
     {
         if (parent.get() == null)
             return null;
         else
-            return (parent.get().getTagPath() != null) ? String.format("%s->%s", parent.get().getTagPath(), tag.getValue()) : tag.getValue();
+        {
+            String parentPath = parent.get().getTagPath();
+            return (parentPath != null) ? String.format("%s->%s", parentPath, tag.getValue()) : tag.getValue();
+        }
     }
 
     private int id = -1;
@@ -136,12 +149,16 @@ public class TagNode
         for (TagNode child : getChildren())
             child.activateChildNode(on);
     }
-    public void activateChildNode(boolean on)
+    private void activateChildNode(boolean on)
     {
         parentActivationWeight += on ? 1 : -1;
         activateNode(on);
     }
     public boolean isActive() { return activationWeight > 0; }
+    /**
+     * Checks whether this node is enabled directly, or indirectly because of an enabled parent.
+     * @return <code>true</code> if enabled directly; <code>false</code> otherwise
+     */
     public boolean isSelfActivated() { return activationWeight > parentActivationWeight; }
 
     private int exclusionWeight = 0;
@@ -163,6 +180,10 @@ public class TagNode
     }
 
     private ManagedFolder folder = null;
+    /**
+     * Gets location of <code>ManagedFolder</code> directory that owns this node.
+     * @return the absolute path to <code>ManagedFolder</code> directory
+     */
     public String getDirectory()
     {
         if (isRoot())
@@ -171,7 +192,10 @@ public class TagNode
             return getRoot().getDirectory();
     }
 
-    // Root node constructor
+    /**
+     * Class constructor for the root node. The root node is not a tag - it is the parent for all top-level tags (called root tags).
+     * @param folder this tree's owner
+     */
     public TagNode(ManagedFolder folder)
     {
         parent.set(null);
@@ -179,10 +203,19 @@ public class TagNode
         this.folder = folder;
     }
 
-    // General constructor (should not be used for the root node)
-    public TagNode(final TagNode parent, final String TAG) { this(parent, TAG, -1); }
+    /**
+     * Class constructor for new tags.
+     * @param parent the node for which this will become a leaf
+     * @param tag the name describing this node
+     */
+    public TagNode(final TagNode parent, final String tag) { this(parent, tag, -1); }
 
-    // General constructor (should not be used for the root node)
+    /**
+     * Class constructor for preexisting tags.
+     * @param parent the node for which this will become a leaf
+     * @param tag the name describing this node
+     * @param id the unique number assigned by the database
+     */
     public TagNode(final TagNode parent, String tag, int id)
     {
         this.parent.set(parent);
@@ -200,8 +233,11 @@ public class TagNode
             return false;
     }
 
-    /* Starting from the root TagNode of a (sub)tree that is equivalent to the one containing the provided TreeItem,
-     * return the TagNode that corresponds to the TreeItem, or null if it does not exist. */
+    /**
+     * Finds the node in this tag's tree equivalent to <code>item</code>.
+     * @param item the counterpart of the node to search for
+     * @return the equivalent <code>TagNode</code>; <code>null</code> if not found
+     */
     public TagNode findNode(TreeItem<String> item)
     {
         if (item == null)
@@ -242,8 +278,11 @@ public class TagNode
         }
     }
 
-    /* Search the (sub)tree starting with this node for a chain of nodes with IDs equal to those in the provided vector
-     * and return the TagNode at the end if it exists, or null if not. */
+    /**
+     * Searches this node's subtree for a path matching <code>lineage</code>.
+     * @param lineage the path of expected tag IDs from one of this node's children to the target
+     * @return the node at the end of the path; <code>null</code> if not found
+     */
     public TagNode findNode(Vector<Integer> lineage)
     {
         TagNode currentNode = this;
@@ -267,7 +306,10 @@ public class TagNode
         return currentNode;
     }
 
-    // Return a string of comma-separated IDs for all the nodes in the subtree that is rooted at this node
+    /**
+     * Traverses the subtree rooted at this node and creates a depth-first list of IDs.
+     * @return a string of comma-separated integers
+     */
     public String getSubtreeIds()
     {
         StringBuilder idList = new StringBuilder();

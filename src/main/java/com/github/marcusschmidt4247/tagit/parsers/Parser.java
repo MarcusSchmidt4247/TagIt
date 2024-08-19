@@ -12,7 +12,7 @@ import java.util.Vector;
 
 public abstract class Parser
 {
-    abstract public int getNextPage();
+    abstract public int getNextPageNum();
     abstract public boolean setNextPage(int targetPage, final int maxChars);
     abstract public ParserResults readNextPage(final Font font, final int maxChars);
     abstract public void close();

@@ -29,7 +29,7 @@ public class DocxParser extends Parser
     private final WordprocessingMLPackage mainDocument;
 
     private int nextPage;
-    public int getNextPage() { return nextPage; }
+    public int getNextPageNum() { return nextPage; }
 
     private record PageStart(String paraId, int offset) { }
     private final Vector<PageStart> pages = new Vector<>();
@@ -157,18 +157,12 @@ public class DocxParser extends Parser
                     {
                         if (properties.getNumPr() != null && properties.getNumPr().getIlvl() != null)
                         {
-                            // Determine the bullet point character from the list level
-                            int listLevel = properties.getNumPr().getIlvl().getVal().intValue();
-                            char bulletPoint = '-';
-                            if (listLevel % 3 == 1)
-                                bulletPoint = '*';
-                            else if (listLevel % 3 == 2)
-                                bulletPoint = 'º';
-
                             // Indent the line according to the list level and add the bullet point with a small buffer
+                            int listLevel = properties.getNumPr().getIlvl().getVal().intValue();
                             char[] indent = new char[listLevel];
                             Arrays.fill(indent, '\t');
-                            newLine.append(indent).append(bulletPoint).append("  ");
+                            char[] bulletPoints = { '-', '*', 'º' };
+                            newLine.append(indent).append(bulletPoints[listLevel % bulletPoints.length]).append("  ");
                         }
                         else
                             System.out.println("DocxTraversalCallback.newParagraph: Unable to retrieve ListParagraph level");

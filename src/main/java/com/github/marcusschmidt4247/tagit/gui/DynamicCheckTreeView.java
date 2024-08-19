@@ -21,6 +21,13 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
 {
     public interface ActionCallback
     {
+        /**
+         * Operates on <code>node</code> based on state of <code>checked</code> and <code>alt</code>.
+         * @param node the tag that was just (un)checked
+         * @param checked the current selection state of <code>node</code>
+         * @param alt <code>false</code> if <code>node</code> was (un)checked normally; <code>true</code> if <code>node</code> was moved
+         *            while checked and the <code>TreeItem</code> and <code>TagNode</code> are being realigned
+         */
         void action(TagNode node, boolean checked, boolean alt);
     }
 
@@ -84,6 +91,12 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         }
     }
 
+    /**
+     * Searches for an item in this tree that corresponds to a <code>TagNode</code>.
+     * @param tag the counterpart of the node to locate
+     * @param expandPath <code>true</code> to expand collapsed <code>TreeItem</code>s on the way to the target node; <code>false</code> otherwise
+     * @return the equivalent <code>TreeItem</code>; <code>null</code> if not found
+     */
     public TreeItem<String> findItem(TagNode tag, boolean expandPath)
     {
         // Attempt to find the TreeItem that is equivalent to 'preselectedNode'
@@ -239,7 +252,15 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         treeItem.getChildren().add(invisibleItem);
     }
 
-    // Returns true if all newly checked and unchecked tree items could be processed, and false if any of them were checked when their associated TagNode was deleted
+    /**
+     * Invokes <code>callback</code> on <code>TagNode</code> equivalents to toggled items in this tree.
+     * @param added all newly checked <code>TreeItem</code>s
+     * @param removed all newly unchecked <code>TreeItem</code>s
+     * @param root the root node of this tree's <code>TagNode</code> counterpart
+     * @param callback a function that operates on a <code>TagNode</code> when its counterpart is toggled
+     * @return <code>true</code> if all callbacks were invoked; <code>false</code> if a <code>TreeItem</code> was checked when its corresponding
+     * <code>TagNode</code> was deleted
+     */
     public boolean processCheckedDelta(Vector<TreeItem<String>> added, Vector<TreeItem<String>> removed, TagNode root, ActionCallback callback)
     {
         boolean success = true;

@@ -24,6 +24,14 @@ public class WindowManager
 {
     private static Stage managedFoldersStage = null;
 
+    /**
+     * Asks user's permission for an action with custom button text.
+     * @param title the name of the dialog
+     * @param header a short description of the action needing approval
+     * @param description additional details for the user
+     * @param posButtonText the verb for the action needing approval
+     * @return <code>true</code> if the user granted permission; <code>false</code> otherwise
+     */
     public static boolean customConfirmationDialog(String title, String header, String description, String posButtonText)
     {
         Alert confirmation = new Alert(Alert.AlertType.NONE);
@@ -38,8 +46,19 @@ public class WindowManager
         return confirmation.getResult().equals(confirmButtonType);
     }
 
+    /**
+     * Asks user's permission for an action.
+     * @param title the name of the dialog
+     * @param header a short description of the action needing approval
+     * @param description additional details for the user
+     * @return <code>true</code> if the user granted permission; <code>false</code> otherwise
+     */
     public static boolean confirmationDialog(String title, String header, String description) { return customConfirmationDialog(title, header, description, "OK"); }
 
+    /**
+     * Warns user that something went wrong. Must be acknowledged before returning to caller.
+     * @param message a short description of what went wrong
+     */
     public static void showError(String message)
     {
         Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -47,10 +66,17 @@ public class WindowManager
         alert.showAndWait();
     }
 
-    // Open a new main window for the provided managed folder
+    /**
+     * Creates a new instance of the primary window into this folder.
+     * @param folder the target to access
+     */
     public static void openFolder(ManagedFolder folder) { openFolder(folder, new Stage()); }
 
-    // Open the provided managed folder onto the given stage
+    /**
+     * Creates a new instance of the primary window into this folder on a specific stage.
+     * @param folder the target to access
+     * @param stage the stage on which to build the scene
+     */
     public static void openFolder(ManagedFolder folder, Stage stage)
     {
         try
@@ -71,7 +97,10 @@ public class WindowManager
         }
     }
 
-    // Create a window to view, create, delete, and open the editor for ManagedFolder objects
+    /**
+     * Creates or brings to front the window to manage <code>ManagedFolder</code>s. This window is not owned by the one that
+     * opens it, and only one instance can exist at a time.
+     */
     public static void openFolderManager()
     {
         if (managedFoldersStage == null)
@@ -97,7 +126,12 @@ public class WindowManager
             managedFoldersStage.toFront();
     }
 
-    // Create a window to view all ManagedFolder objects and select one to replace the current main window
+    /**
+     * Replaces <code>currentWindow</code> with the primary window for a <code>ManagedFolder</code> other than <code>currentFolder</code>.
+     * The window to select a new <code>ManagedFolder</code> is application modal.
+     * @param currentWindow the calling window that will be replaced
+     * @param currentFolder the folder that is already opened by <code>currentWindow</code>
+     */
     public static void switchFolder(Window currentWindow, ManagedFolder currentFolder)
     {
         try
@@ -128,7 +162,11 @@ public class WindowManager
         }
     }
 
-    // Create a window to edit a ManagedFolder object
+    /**
+     * Creates window with form for <code>ManagedFolder</code> properties.
+     * @param owner the parent window
+     * @param folder the object being edited; <code>null</code> if the object needs to be created (fields will contain default values)
+     */
     public static void openFolderEditor(Window owner, ManagedFolder folder)
     {
         try
@@ -150,7 +188,12 @@ public class WindowManager
         }
     }
 
-    // Create a window to select a tag from the provided TagNode tree (preselectedTag can be null)
+    /**
+     * Asks user to select one node in a <code>TagNode</code> tree. The selection window is application modal.
+     * @param treeRoot the root node of the <code>TagNode</code> tree
+     * @param preselectedTag the previous choice that will not be offered again (parent will be selected by default); can be left <code>null</code>
+     * @return the user's selection; <code>null</code> if cancelled
+     */
     public static TagNode selectTag(TagNode treeRoot, TagNode preselectedTag)
     {
         try
@@ -174,7 +217,11 @@ public class WindowManager
         }
     }
 
-    // Create a window to edit the provided TagNode
+    /**
+     * Creates window with form to edit a <code>TagNode</code> object.
+     * @param owner the parent window
+     * @param tag the object being edited
+     */
     public static void openTagEditor(Window owner, TagNode tag)
     {
         try

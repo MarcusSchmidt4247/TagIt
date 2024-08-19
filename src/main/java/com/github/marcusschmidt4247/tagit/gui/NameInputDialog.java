@@ -23,16 +23,31 @@ public class NameInputDialog extends TextInputDialog
     private final Type type;
 
     private String name = null;
+    /**
+     * Gets the most recent name entered into this dialog.
+     * <p/>
+     * If called after <code>showAndLoop()</code> returns <code>true</code>, <code>name</code>
+     * is guaranteed to be valid. Otherwise, <code>name</code> might be unsafe to use.
+     * @return the user's most recent input; <code>null</code> if dialog was cancelled
+     */
     public String getName() { return name; }
 
     private TagNode parent;
 
     private boolean isRoot = false;
+    /**
+     * Checks if the name provided by the user is for a root tag.
+     * @return <code>true</code> if naming a root tag; <code>false</code> otherwise
+     */
     public boolean getIsRoot() { return isRoot; }
 
-    public NameInputDialog(String defaultFileName)
+    /**
+     * Class constructor to name a file.
+     * @param defaultName the text that pre-fills the name field
+     */
+    public NameInputDialog(String defaultName)
     {
-        super(defaultFileName);
+        super(defaultName);
         type = Type.FILE;
         setHeaderText("Enter a new file name:");
         setTitle("");
@@ -40,6 +55,12 @@ public class NameInputDialog extends TextInputDialog
         getDialogPane().setMinWidth(300);
     }
 
+    /**
+     * Class constructor to name a tag.
+     * @param defaultName the text that pre-fills the name field
+     * @param parent the <code>TagNode</code> that will parent this tag unless it's marked as root
+     *               (cannot be <code>null</code>)
+     */
     public NameInputDialog(String defaultName, TagNode parent)
     {
         type = Type.TAG;
@@ -85,7 +106,10 @@ public class NameInputDialog extends TextInputDialog
         getDialogPane().setMinWidth(300);
     }
 
-    // Show the dialog repeatedly until the user cancels or enters a valid file name, and then return whether a valid name was entered
+    /**
+     * Shows this dialog until the user cancels or enters a valid name.
+     * @return <code>true</code> if a valid name was entered; <code>false</code> otherwise
+     */
     public boolean showAndLoop()
     {
         boolean valid;

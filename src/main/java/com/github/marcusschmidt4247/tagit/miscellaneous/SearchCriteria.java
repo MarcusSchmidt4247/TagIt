@@ -39,8 +39,12 @@ public class SearchCriteria
 
     private final boolean excluding;
 
+    private final String directory;
+    public String getDirectory() { return directory; }
+
     public SearchCriteria(TagNode root, Vector<FileTypes.Type> fileTypes, boolean anyMatch, boolean excluding, SortMethod sortMethod)
     {
+        directory = root.getDirectory();
         this.fileTypes = fileTypes;
         this.anyMatch = anyMatch;
         this.excluding = excluding;

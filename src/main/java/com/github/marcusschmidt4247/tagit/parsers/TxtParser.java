@@ -21,7 +21,7 @@ public class TxtParser extends Parser
     private int filePos;
 
     private int nextPage;
-    public int getNextPage() { return nextPage; }
+    public int getNextPageNum() { return nextPage; }
 
     private final Vector<Integer> pages;
     private String carryover;

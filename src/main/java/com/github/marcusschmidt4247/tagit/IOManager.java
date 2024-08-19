@@ -38,9 +38,13 @@ public class IOManager
         return managedFoldersModel;
     }
 
-    /* Check whether the root TagIt directory and database file exist (located in the user program directory by default). If not, create them.
-     * This method should be called immediately after the application launches, and it can be called again at any time to confirm that these
-     * required files still exist. */
+    /**
+     * Verifies that the root <code>TagIt</code> directory and database file exist. If they do not, they will be created.
+     * <p/>
+     * This method should be called immediately after the application launches. It can be called again at any time.
+     * @param customRoot the absolute path to the root <code>TagIt</code> directory; if <code>null</code>, defaults to user program directory
+     * @return <code>true</code> if the root directory is valid; <code>false</code> otherwise
+     */
     public static boolean verify(String customRoot)
     {
         if (customRoot != null)
@@ -114,8 +118,12 @@ public class IOManager
         return true;
     }
 
-    /* Check whether a directory exists at the given path and that it contains the database and storage subdirectory required to be a managed folder.
-     * If any of these elements are missing, they will be created. */
+    /**
+     * Verifies that all <code>ManagedFolder</code> elements exist. The directory, database, and storage subdirectory will be checked.
+     * If any of these elements are missing, they will be created.
+     * @param folder the ManagedFolder to verify
+     * @return <code>true</code> if the folder is valid; <code>false</code> otherwise
+     */
     public static boolean verify(ManagedFolder folder)
     {
         String directoryPath = folder.getFullPath();
@@ -166,7 +174,12 @@ public class IOManager
         return true;
     }
 
-    // Construct a file path from two or more segments using the current operating system's path separator
+    /**
+     * Constructs a file path from two or more segments. The path separator for the current OS will be inserted between segments.
+     * @param rootPath an absolute file path (must be properly formatted already)
+     * @param relativePaths one or more segments to append
+     * @return an absolute file path
+     */
     public static String formatPath(String rootPath, String ... relativePaths)
     {
         if (rootPath == null)
@@ -188,8 +201,19 @@ public class IOManager
         }
     }
 
+    /**
+     * Constructs the complete path to a file.
+     * @param directory the absolute path to the file's <code>ManagedFolder</code> directory
+     * @param filename the name of the file
+     * @return an absolute file path
+     */
     public static String getFilePath(String directory, String filename) { return formatPath(directory, STORAGE_DIRECTORY_NAME, filename); }
 
+    /**
+     * Searches a string for characters that are not allowed.
+     * @param input the string to validate
+     * @return <code>true</code> if <code>input</code> uses only valid characters; <code>false</code> otherwise
+     */
     public static boolean validInput(String input)
     {
         for (char c : input.toCharArray())
@@ -200,6 +224,12 @@ public class IOManager
         return true;
     }
 
+    /**
+     * Safely deletes a tag from the database. All children tags will be deleted first, and each one will be checked for any files that will
+     * be inaccessible  without it, giving the user a chance to resolve the conflict or halt the process.
+     * @param tag the <code>TagNode</code> to delete
+     * @return <code>true</code> if the <code>TagNode</code> was deleted; <code>false</code> otherwise
+     */
     public static boolean deleteTag(TagNode tag)
     {
         // Delete this tag's children first, and halt the process if deleting any of them is unsuccessful
@@ -267,8 +297,11 @@ public class IOManager
         return proceed;
     }
 
-    /* Return a list of all files in the provided directory that pass the filter (needs a compatible extension),
-     * or return null if the path is not a valid directory or does not permit its files to be read */
+    /**
+     * Fetches all files in a directory that have a supported file extension. Should not be used on a <code>ManagedFolder</code> directory.
+     * @param PATH the absolute path to a file directory
+     * @return an array of file names; <code>null</code> if path is invalid or directory does not permit its files to be read
+     */
     public static File[] getFilesInDir(final String PATH)
     {
         File directory = new File(PATH);
@@ -288,8 +321,15 @@ public class IOManager
         }
     }
 
-    /* Move a ManagedFolder's corresponding directory in computer storage (NOT in the database).
-     * Also used for renaming folders because a directory cannot be renamed if it contains files. */
+    /**
+     * Moves a <code>ManagedFolder</code> directory to the location in <code>delta</code>. The database entry and <code>folder</code>
+     * object will not be changed.
+     * <p/>
+     * If <code>delta</code> contains a name, this method can also be used to rename the <code>ManagedFolder</code> directory.
+     * @param folder the target to move its directory and files
+     * @param delta a container for the new location (and optionally a new name)
+     * @return <code>true</code> if moved; <code>false</code> otherwise
+     */
     public static boolean moveManagedFolder(ManagedFolder folder, ManagedFolder delta)
     {
         // Check that the new directory path isn't already in use
@@ -356,7 +396,12 @@ public class IOManager
         return false;
     }
 
-    // Confirm with user and then delete a ManagedFolder object, its database entry, and its directory in computer storage
+    /**
+     * Deletes <code>ManagedFolder</code> files and directory from device storage. Receives permission from user before deleting. Deletes
+     * <code>folder</code> from <code>ManagedFoldersModel</code> at the end.
+     * @param folder the <code>ManagedFolder</code> to delete
+     * @return <code>true</code> if deleted; <code>false</code> otherwise
+     */
     public static boolean deleteManagedFolder(ManagedFolder folder)
     {
         // Alert the user which data this action deletes and ask for confirmation
@@ -408,6 +453,13 @@ public class IOManager
         return false;
     }
 
+    /**
+     * Renames a file in device storage and the database.
+     * @param directory the absolute path to the file's <code>ManagedFolder</code> directory
+     * @param oldName the current file name
+     * @param newName the name to assign to the file
+     * @return <code>true</code> if the file was renamed; <code>false</code> otherwise
+     */
     public static boolean renameFile(String directory, String oldName, String newName)
     {
         // Check that the new file name isn't already being used
@@ -439,6 +491,11 @@ public class IOManager
         return false;
     }
 
+    /**
+     * Deletes a file from device storage and the database.
+     * @param directory the absolute path to the directory
+     * @param fileName the name of the file
+     */
     public static void deleteFile(String directory, String fileName)
     {
         // Delete the actual file from the managed directory

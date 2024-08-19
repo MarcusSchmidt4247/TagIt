@@ -291,7 +291,7 @@ public class TaggerController
         SearchCriteria searchCriteria = new SearchCriteria(taggerModel.getTreeRoot(), fileTypes, anyMatch, excluding, getSortMethod());
 
         // Select files that meet the search criteria and refresh the content pane
-        taggerModel.setFiles(Database.getTaggedFiles(taggerModel.getPath(), searchCriteria));
+        taggerModel.setFiles(Database.getTaggedFiles(searchCriteria));
         refreshContentPane(taggerModel.firstFile());
     }
 

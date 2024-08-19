@@ -23,12 +23,21 @@ public class ManagedFolder
     public StringProperty nameProperty() { return name; }
     public void setName(String name) { this.name.set(name); }
 
-    // 'location' is the path to the managed folder's parent directory, NOT to the folder itself
     private final StringProperty location;
+    /**
+     * Gets the path to this directory's parent. Generally used for getting this directory's location - not ideal
+     * for accessing files within it (use <code>getFullPath()</code> for that).
+     * @return an absolute file path
+     */
     public String getLocation() { return location.get(); }
     public StringProperty locationProperty() { return location; }
     public void setLocation(String location) { this.location.set(location); }
 
+    /**
+     * Gets the path to this directory. Generally used for accessing files within this directory - not ideal
+     * for getting this directory's location (use <code>getLocation()</code> for that).
+     * @return an absolute file path
+     */
     public String getFullPath() { return IOManager.formatPath(location.get(), name.get()); }
 
     private BooleanProperty mainFolder = null;
@@ -54,10 +63,26 @@ public class ManagedFolder
     private final BooleanProperty deleted;
     public BooleanProperty deletedProperty() { return deleted; }
 
+    /**
+     * Class constructor that defaults to <code>null</code> values.
+     */
     public ManagedFolder() { this(-1, null, null, null); }
 
+    /**
+     * Class constructor for new folders without a database-assigned ID.
+     * @param name the title of this folder
+     * @param location the absolute path to this folder's parent directory
+     * @param mainFolder <code>true</code> if this folder is the user's chosen default; <code>false</code> otherwise
+     */
     public ManagedFolder(String name, String location, boolean mainFolder) { this(-1, name, location, mainFolder); }
 
+    /**
+     * Class constructor for existing folders.
+     * @param id the database-assigned ID
+     * @param name the title of this folder
+     * @param location the absolute path to this folder's parent directory
+     * @param mainFolder <code>true</code> if this folder is the user's chosen default; <code>false</code> otherwise
+     */
     public ManagedFolder(int id, String name, String location, Boolean mainFolder)
     {
         this.id = id;
@@ -77,6 +102,10 @@ public class ManagedFolder
 
     public boolean equals(ManagedFolder other) { return id != -1 && id == other.getId(); }
 
+    /**
+     * Updates this folder's properties with the values in <code>delta</code>.
+     * @param delta the set of updated values; any property that is <code>null</code> will not be updated
+     */
     public void set(ManagedFolder delta)
     {
         if (delta.getName() != null)

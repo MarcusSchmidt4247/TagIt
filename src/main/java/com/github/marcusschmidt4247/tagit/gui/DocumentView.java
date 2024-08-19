@@ -73,7 +73,10 @@ public class DocumentView extends VBox
         getChildren().add(pageControlsLayout);
     }
 
-    // Load a new file into the DocumentView
+    /**
+     * Loads and displays a new file in this view.
+     * @param file a text document
+     */
     public void load(File file)
     {
         // Close the previous file if not already
@@ -102,7 +105,9 @@ public class DocumentView extends VBox
             viewPage();
     }
 
-    // When the previous file is no longer needed, close the file reader and set file attributes to the defaults
+    /**
+     * Frees memory and stops displaying current file.
+     */
     public void close()
     {
         if (parser != null)
@@ -114,20 +119,24 @@ public class DocumentView extends VBox
         this.file = null;
         type = Type.UNSUPPORTED;
         lastPage = -1;
+
+        contentPane.getChildren().clear();
+        nextPageButton.setDisable(true);
+        prevPageButton.setDisable(true);
     }
 
     // Move to the document's next page
     private void onNextPage()
     {
-        if (file != null && (lastPage == -1 || parser.getNextPage() <= lastPage))
+        if (file != null && (lastPage == -1 || parser.getNextPageNum() <= lastPage))
             viewPage();
     }
 
     // Move to the document's previous page
     private void onPrevPage()
     {
-        if (file != null && parser.getNextPage() > 1)
-            viewPage(parser.getNextPage() - 2);
+        if (file != null && parser.getNextPageNum() > 1)
+            viewPage(parser.getNextPageNum() - 2);
     }
 
     // Show the next page in the document
@@ -147,12 +156,12 @@ public class DocumentView extends VBox
         {
             ParserResults results = parser.readNextPage(defaultFont, MAX_CHAR_PER_PAGE);
             if (results == null)
-                lastPage = parser.getNextPage() - 1;
+                lastPage = parser.getNextPageNum() - 1;
             else
             {
                 if (results.isEndOfFile())
                 {
-                    lastPage = parser.getNextPage() - 1;
+                    lastPage = parser.getNextPageNum() - 1;
                     // If the document is a single page, hide the page controls
                     if (lastPage == 0)
                         pageControlsLayout.setVisible(false);
@@ -166,13 +175,13 @@ public class DocumentView extends VBox
             }
 
             // Disable the button to go to the next page only when on the last page
-            if (lastPage != -1 && parser.getNextPage() > lastPage)
+            if (lastPage != -1 && parser.getNextPageNum() > lastPage)
                 nextPageButton.setDisable(true);
             else if (nextPageButton.isDisabled())
                 nextPageButton.setDisable(false);
 
             // Disable the button to go to the previous page only when on the first page
-            if (parser.getNextPage() == 1)
+            if (parser.getNextPageNum() == 1)
                 prevPageButton.setDisable(true);
             else if (prevPageButton.isDisabled())
                 prevPageButton.setDisable(false);

@@ -15,6 +15,10 @@ public class TaggerModel
 {
     private final ManagedFolder folder;
     public ManagedFolder getFolder() { return folder; }
+    /**
+     * Gets the location of the current <code>ManagedFolder</code> directory.
+     * @return an absolute file path
+     */
     public String getPath() { return folder.getFullPath(); }
 
     private final TagNode tagTreeRoot;

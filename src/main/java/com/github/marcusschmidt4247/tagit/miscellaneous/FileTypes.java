@@ -28,7 +28,11 @@ public class FileTypes
         }
     }
 
-    // Return the file extension in lowercase from the provided name (or null if it doesn't have one)
+    /**
+     * Isolates the extension in a file name.
+     * @param filename the name of a file
+     * @return the extension in lowercase; <code>null</code> if it does not exist
+     */
     public static String getExtension(String filename)
     {
         int dotIndex = filename.toLowerCase().lastIndexOf('.');
@@ -38,6 +42,12 @@ public class FileTypes
             return null;
     }
 
+    /**
+     * Matches a file name to the type of file it represents. Multiple file extensions can belong to the same type (such as
+     * <code>.txt</code> and <code>.docx</code> both belonging to the <code>TEXT</code> category).
+     * @param filename the name of the file
+     * @return the file's category
+     */
     public static Type getType(String filename)
     {
         if (filename != null)

@@ -12,6 +12,7 @@ module com.github.marcusschmidt4247.tagit {
     requires jakarta.xml.bind;
     requires org.docx4j.core;
     requires org.docx4j.JAXB_ReferenceImpl;
+    requires org.docx4j.openxml_objects;
 
     exports com.github.marcusschmidt4247.tagit;
     exports com.github.marcusschmidt4247.tagit.controllers;
