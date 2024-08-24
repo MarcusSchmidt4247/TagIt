@@ -15,12 +15,13 @@
 <VBox alignment="CENTER" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.marcusschmidt4247.tagit.controllers.TaggerController" stylesheets="@stylesheets.css">
     <MenuBar useSystemMenuBar="true">
         <Menu text="Folder">
-            <MenuItem text="Switch Folder" onAction="#onSwitchFolders"/>
-            <MenuItem text="Manage Folders" onAction="#onManageFolders"/>
+            <MenuItem text="Manage All" onAction="#onManageFolders"/>
+            <MenuItem text="Switch" onAction="#onSwitchFolders"/>
         </Menu>
         <Menu text="Files">
-            <MenuItem text="Toggle File Editing" onAction="#onToggleEdit"/>
-            <MenuItem text="Import New Files" onAction="#onSelectImport"/>
+            <MenuItem text="Manage All" onAction="#onManageFiles"/>
+            <MenuItem text="Import" onAction="#onSelectImport"/>
+            <CheckMenuItem text="Edit" onAction="#onToggleEdit"/>
         </Menu>
         <Menu text="Advanced Controls">
             <Menu fx:id="fileTypesMenu" text="File Types"/>
@@ -81,7 +82,7 @@
             </AnchorPane>
         </SplitPane>
         <!-- Middle pane shows content, if available -->
-        <AnchorPane fx:id="contentPane" minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+        <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
             <MultiMediaView fx:id="mediaView" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0"/>
         </AnchorPane>
         <!-- Right pane is hidden by default and contains another tag selector to edit a file's tags -->

@@ -19,6 +19,12 @@ import java.util.Vector;
 
 public class DynamicCheckTreeView extends CheckTreeView<String>
 {
+    /**
+     * Operates on <code>node</code> based on state of <code>checked</code> and <code>alt</code>.
+     * <p/> <code>checked</code> - the current selection state of <code>node</code>
+     * <p/> <code>alt</code> - <code>false</code> if <code>node</code> was (un)checked normally; <code>true</code> if <code>node</code> was moved
+     * while checked and the <code>TreeItem</code> and <code>TagNode</code> are being brought back to the same state
+     */
     public interface ActionCallback
     {
         /**
@@ -26,7 +32,7 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
          * @param node the tag that was just (un)checked
          * @param checked the current selection state of <code>node</code>
          * @param alt <code>false</code> if <code>node</code> was (un)checked normally; <code>true</code> if <code>node</code> was moved
-         *            while checked and the <code>TreeItem</code> and <code>TagNode</code> are being realigned
+         *            while checked and the <code>TreeItem</code> and <code>TagNode</code> are being brought back to the same state
          */
         void action(TagNode node, boolean checked, boolean alt);
     }
@@ -124,6 +130,22 @@ public class DynamicCheckTreeView extends CheckTreeView<String>
         }
 
         return currentItem;
+    }
+
+    /**
+     * Selects nodes in this tree equivalent to <code>tags</code>.
+     * @param tags a subset of nodes from this tree's corresponding <code>TagNode</code> tree
+     * @param expand <code>true</code> to visually expand path to checked items; <code>false</code> otherwise
+     */
+    public void checkItems(Vector<TagNode> tags, boolean expand)
+    {
+        for (TagNode tag : tags)
+        {
+            if (mode != Mode.LEAF_CHECK || tag.isLeaf())
+                ((CheckBoxTreeItem<String>) findItem(tag, expand)).setSelected(true);
+            else
+                System.out.printf("DynamicCheckTreeView.checkItems: Tag \"%s\" is not a leaf\n", tag.getTag());
+        }
     }
 
     /* Populate a newly expanded TreeItem with children matching those in the provided TagNode

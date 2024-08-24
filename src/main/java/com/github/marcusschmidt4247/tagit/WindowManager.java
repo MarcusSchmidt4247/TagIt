@@ -81,7 +81,7 @@ public class WindowManager
     {
         try
         {
-            FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("tagger-view.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("tagger-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load(), 850, 600);
             TaggerController taggerController = fxmlLoader.getController();
             taggerController.setFolder(folder);
@@ -107,7 +107,7 @@ public class WindowManager
         {
             try
             {
-                FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folders-view.fxml"));
+                FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("managed-folders-view.fxml"));
                 Scene scene = new Scene(fxmlLoader.load());
                 managedFoldersStage = new Stage();
                 managedFoldersStage.setTitle("Managed Folders");
@@ -136,7 +136,7 @@ public class WindowManager
     {
         try
         {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folders-view.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("managed-folders-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
             ManagedFoldersController controller = fxmlLoader.getController();
             controller.setSelectionOnly(currentFolder);
@@ -171,7 +171,7 @@ public class WindowManager
     {
         try
         {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("managed-folder-editor-view.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("managed-folder-editor-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
             ((ManagedFolderEditorController) fxmlLoader.getController()).setFolders(folder);
             Stage stage = new Stage();
@@ -198,7 +198,7 @@ public class WindowManager
     {
         try
         {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("tag-selector-view.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("tag-selector-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
             TagSelectorController controller = fxmlLoader.getController();
             controller.setTagNodes(treeRoot, preselectedTag);
@@ -226,7 +226,7 @@ public class WindowManager
     {
         try
         {
-            FXMLLoader fxmlLoader = new FXMLLoader(IOManager.class.getResource("tag-editor-view.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("tag-editor-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
             ((TagEditorController) fxmlLoader.getController()).setTag(tag);
             Stage stage = new Stage();
@@ -235,6 +235,31 @@ public class WindowManager
             stage.setTitle("Edit Tag");
             stage.setScene(scene);
             stage.showAndWait();
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Creates window with controls to edit an imported file.
+     * @param file the name of the file to edit
+     * @param root the beginning of the <code>TagNode</code> tree used to tag <code>file</code>
+     */
+    public static void openFileEditor(String file, TagNode root)
+    {
+        try
+        {
+            FXMLLoader fxmlLoader = new FXMLLoader(WindowManager.class.getResource("file-editor-view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load());
+            Stage stage = new Stage();
+            stage.setMinHeight(400);
+            stage.setMinWidth(450);
+            stage.setTitle("File Editor");
+            stage.setScene(scene);
+            stage.show();
+            ((FileEditorController) fxmlLoader.getController()).setFile(file, root);
         }
         catch (IOException e)
         {

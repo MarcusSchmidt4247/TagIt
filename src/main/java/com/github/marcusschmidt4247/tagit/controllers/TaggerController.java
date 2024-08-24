@@ -25,7 +25,6 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -42,7 +41,6 @@ public class TaggerController
     @FXML private DynamicCheckTreeView excludeTreeView;
     @FXML private DynamicCheckTreeView editTreeView;
     @FXML private SplitPane mainSplitPane;
-    @FXML private AnchorPane contentPane;
     @FXML private AnchorPane editPane;
     @FXML private Label fileNameLabel;
     @FXML private MultiMediaView mediaView;
@@ -203,6 +201,27 @@ public class TaggerController
     }
 
     @FXML
+    public void onManageFiles()
+    {
+        try
+        {
+            FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("file-manager-view.fxml"));
+            Scene scene = new Scene(fxmlLoader.load());
+            ((FileManagerController) fxmlLoader.getController()).setModel(taggerModel);
+            Stage stage = new Stage();
+            stage.setTitle("Files");
+            stage.setMinWidth(520);
+            stage.setMinHeight(400);
+            stage.setScene(scene);
+            stage.showAndWait();
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @FXML
     public void onSelectImport() throws IOException
     {
         FXMLLoader fxmlLoader = new FXMLLoader(TaggerApplication.class.getResource("importer-view.fxml"));
@@ -210,8 +229,6 @@ public class TaggerController
         ((ImporterController) fxmlLoader.getController()).setModel(taggerModel);
 
         Stage stage = new Stage();
-        stage.initOwner(contentPane.getScene().getWindow());
-        stage.initModality(Modality.WINDOW_MODAL);
         stage.setMinWidth(450);
         stage.setMinHeight(400);
         stage.setTitle("File Importer");
@@ -252,8 +269,13 @@ public class TaggerController
         NameInputDialog dialog = new NameInputDialog(taggerModel.currentFile());
         if (dialog.showAndLoop())
         {
-            taggerModel.renameCurrentFile(dialog.getName());
-            fileNameLabel.setText(taggerModel.currentFile());
+            if (Database.fileExists(taggerModel.getPath(), dialog.getName()))
+                WindowManager.showError("This file name is already taken");
+            else
+            {
+                taggerModel.renameCurrentFile(dialog.getName());
+                fileNameLabel.setText(taggerModel.currentFile());
+            }
         }
     }
 
@@ -334,14 +356,7 @@ public class TaggerController
             // Disable the edit tag tree's checked item listener, set the current file's tags to be checked in the tree, and reapply the listener
             editTreeView.getCheckModel().getCheckedItems().removeListener(editTreeListener);
             editTreeView.getCheckModel().clearChecks();
-            Vector<TagNode> tags = Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile());
-            for (TagNode tag : tags)
-            {
-                if (tag.isLeaf())
-                    ((CheckBoxTreeItem<String>) editTreeView.findItem(tag, true)).setSelected(true);
-                else
-                    System.out.printf("TaggerController.refreshEditPane: Tag \"%s\" is not a leaf\n", tag.getTag());
-            }
+            editTreeView.checkItems(Database.getFileTags(taggerModel.getTreeRoot(), taggerModel.currentFile()), true);
             editTreeView.getCheckModel().getCheckedItems().addListener(editTreeListener);
         }
         else

@@ -462,10 +462,10 @@ public class IOManager
      */
     public static boolean renameFile(String directory, String oldName, String newName)
     {
-        // Check that the new file name isn't already being used
+        // Check that the new file name isn't already being used (don't count this file if only character cases are being changed)
         String targetPath = getFilePath(directory, newName);
         File target = new File(targetPath);
-        if (!target.exists())
+        if (newName.equalsIgnoreCase(oldName) || !target.exists())
         {
             // If not, rename the actual file
             String oldPath = getFilePath(directory, oldName);
@@ -486,7 +486,7 @@ public class IOManager
                 System.out.println("IOManager.renameFile: Unable to rename file");
         }
         else
-            WindowManager.showError("This file name is already taken");
+            WindowManager.showError("A file with this name already exists");
 
         return false;
     }

@@ -418,6 +418,29 @@ public class Database
     //***************************
 
     /**
+     * Fetches every file in a particular <code>ManagedFolder</code>.
+     * @param directory the absolute path to the <code>ManagedFolder</code> directory
+     * @return a list of file names
+     */
+    public static Vector<String> getFiles(String directory)
+    {
+        Vector<String> files = new Vector<>();
+        try (Connection connection = connect(directory))
+        {
+            Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery("SELECT DISTINCT name FROM File ORDER BY name ASC");
+            while (results.next())
+                files.add(results.getString(1));
+            statement.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return files;
+    }
+
+    /**
      * Fetches list of files associated with <code>tag</code>.
      * @param tag the node that files must be associated with
      * @return the names of all tagged files
@@ -709,7 +732,7 @@ public class Database
     /**
      * Checks if a file name is already used in a <code>ManagedFolder</code>.
      * @param directory the absolute path to a <code>ManagedFolder</code> directory
-     * @param fileName the name to search for
+     * @param fileName the name to search for (case-insensitive)
      * @return <code>true</code> if the file name is in use; <code>false</code> otherwise
      */
     public static boolean fileExists(String directory, String fileName)
@@ -743,7 +766,6 @@ public class Database
         }
         catch (SQLException e)
         {
-            // If the name cannot be updated in the database, attempt to revert the actual file's name to keep everything consistent
             System.out.println("Database.renameFile: Unable to rename file in database");
             return false;
         }

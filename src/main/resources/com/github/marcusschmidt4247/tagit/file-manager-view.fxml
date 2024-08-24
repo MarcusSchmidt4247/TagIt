@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- TagIt
+     file-manager-view.fxml
+     Copyright (C) 2024  Marcus Schmidt
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.geometry.Insets?>
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.marcusschmidt4247.tagit.controllers.FileManagerController"
+      alignment="CENTER" spacing="10">
+    <padding>
+        <Insets bottom="10.0" left="10.0" right="10.0"/>
+    </padding>
+    <MenuBar useSystemMenuBar="true"/>
+    <!-- Search field -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label text="Search:"/>
+        <TextField fx:id="searchField" HBox.hgrow="ALWAYS"/>
+    </HBox>
+    <!-- List of files -->
+    <ListView fx:id="filesList"/>
+    <!-- Controls -->
+    <AnchorPane>
+        <HBox alignment="CENTER_LEFT" spacing="5" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.topAnchor="0">
+            <Label text="Results:"/>
+            <Label fx:id="numLabel"/>
+        </HBox>
+        <HBox spacing="5" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
+            <Button text="Delete" onAction="#onDelete"/>
+            <Button text="View" defaultButton="true" onAction="#onView"/>
+        </HBox>
+    </AnchorPane>
+</VBox>
